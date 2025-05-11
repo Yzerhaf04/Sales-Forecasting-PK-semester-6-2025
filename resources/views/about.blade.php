@@ -5,48 +5,93 @@
     <h1 class="h3 mb-4 text-gray-800">{{ __('About') }}</h1>
 
     <div class="row justify-content-center">
-
         <div class="col-lg-6">
-
-            <div class="card shadow mb-4">
-
+            <div class="card shadow mb-4 text-center">
                 <div class="card-profile-image mt-4">
-                    <img src="{{ asset('img/favicon.png') }}" class="rounded-circle" alt="user-image">
+                    <img src="{{ asset('img/favicon.png') }}" class="rounded-circle" style="width: 100px;" alt="project-logo">
                 </div>
 
                 <div class="card-body">
-
-                    <div class="row">
-                        <div class="col-lg-12">
-                            <h5 class="font-weight-bold">Laravel SB Admin 2</h5>
-                            <p>SB Admin 2 for Laravel.</p>
-                            <p>Recommend to install this preset on a project that you are starting from scratch, otherwise your project's design might break.</p>
-                            <p>If you found this project useful, then please consider giving it a ⭐</p>
-                            <a href="https://github.com/aleckrh/laravel-sb-admin-2" target="_blank" class="btn btn-github">
-                                <i class="fab fa-github fa-fw"></i> Go to repository
-                            </a>
-                        </div>
-                    </div>
+                    <h5 class="font-weight-bold">Sales Forecasting</h5>
+                    <p class="text-muted">Proyek prediksi penjualan untuk Walmart berbasis Laravel dan Machine Learning.</p>
 
                     <hr>
 
-                    <div class="row">
-                        <div class="col-lg-12">
-                            <h5 class="font-weight-bold">Credits</h5>
-                            <p>Laravel SB Admin 2 uses some open-source third-party libraries/packages, many thanks to the web community.</p>
-                            <ul>
-                                <li><a href="https://laravel.com" target="_blank">Laravel</a> - Open source framework.</li>
-                                <li><a href="https://github.com/DevMarketer/LaravelEasyNav" target="_blank">LaravelEasyNav</a> - Making managing navigation in Laravel easy.</li>
-                                <li><a href="https://startbootstrap.com/themes/sb-admin-2" target="_blank">SB Admin 2</a> - Thanks to Start Bootstrap.</li>
-                            </ul>
+                    <h5 class="font-weight-bold">Our Members</h5>
+
+                    <div class="row justify-content-center mt-3">
+                        <!-- Member 1 -->
+                        <div class="col-md-6 mb-4">
+                            <div class="card shadow border-bottom-primary position-relative overflow-hidden">
+                                <!-- Gradasi atas -->
+                                <div style="
+                                    position: absolute;
+                                    top: 0;
+                                    left: 0;
+                                    width: 100%;
+                                    height: 50%;
+                                    background: linear-gradient(to bottom, #0043da, transparent);
+                                    z-index: 0;
+                                "></div>
+
+                                <div class="card-body text-center position-relative" style="z-index: 1;">
+                                    <div style="width: 150px; height: 150px; margin: 0 auto; overflow: hidden; border-radius: 50%;">
+                                        <img src="{{ asset('img/member1.jpg') }}"
+                                             style="width: 100%; height: 100%; object-fit: cover;" alt="Member 1">
+                                    </div>
+                                    <h6 class="mt-3 font-weight-bold text-primary">M Rizki Awaluddin M</h6>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Member 2 -->
+                        <div class="col-md-6 mb-3">
+                            <div class="card shadow border-bottom-primary position-relative overflow-hidden">
+                                <div style="
+                                    position: absolute;
+                                    top: 0;
+                                    left: 0;
+                                    width: 100%;
+                                    height: 50%;
+                                    background: linear-gradient(to bottom, #0043da, transparent);
+                                    z-index: 0;
+                                "></div>
+
+                                <div class="card-body text-center position-relative" style="z-index: 1;">
+                                    <div style="width: 150px; height: 150px; margin: 0 auto; overflow: hidden; border-radius: 50%;">
+                                        <img src="{{ asset('img/member1.jpg') }}"
+                                             style="width: 100%; height: 100%; object-fit: cover;" alt="Member 2">
+                                    </div>
+                                    <h6 class="mt-3 font-weight-bold text-primary">Dzaky Naufal A</h6>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Member 3 -->
+                        <div class="col-md-6 mb-3">
+                            <div class="card shadow border-bottom-primary position-relative overflow-hidden">
+                                <div style="
+                                    position: absolute;
+                                    top: 0;
+                                    left: 0;
+                                    width: 100%;
+                                    height: 50%;
+                                    background: linear-gradient(to bottom, #0043da, transparent);
+                                    z-index: 0;
+                                "></div>
+
+                                <div class="card-body text-center position-relative" style="z-index: 1;">
+                                    <div style="width: 150px; height: 150px; margin: 0 auto; overflow: hidden; border-radius: 50%;">
+                                        <img src="{{ asset('img/member1.jpg') }}"
+                                             style="width: 100%; height: 100%; object-fit: cover;" alt="Member 3">
+                                    </div>
+                                    <h6 class="mt-3 font-weight-bold text-primary">Teuku Rafly F</h6>
+                                </div>
+                            </div>
                         </div>
                     </div>
-
                 </div>
             </div>
-
         </div>
-
     </div>
-
 @endsection

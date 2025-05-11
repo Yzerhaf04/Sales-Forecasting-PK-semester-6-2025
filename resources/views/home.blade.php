@@ -112,81 +112,128 @@
     </div>
 
     <div class="row">
-        <!-- Content Column -->
-        <div class="col-lg-12 mb-2">
-            <!-- Sales Forecast -->
-            <div class="card shadow mb-4">
-                <div class="card-header py-3 d-flex justify-content-between align-items-center">
-                    <h6 class="m-0 font-weight-bold text-primary">Sales Forecast</h6>
-                    <div class="d-flex">
-                        <div class="dropdown">
-                            <button class="btn btn-sm btn-primary dropdown-toggle" style="width: 160px;" type="button" id="storeDropdown"
-                                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Store</button>
-                            <div class="dropdown-menu dropdown-menu-right" aria-labelledby="storeDropdown">
-                                <a class="dropdown-item" href="#"><i class="fas fa-store"></i> Store 1</a>
-                                <a class="dropdown-item" href="#"><i class="fas fa-store"></i> Store 2</a>
-                                <a class="dropdown-item" href="#"><i class="fas fa-store"></i> Store 3</a>
-                            </div>
-                        </div>
-                        <div class="dropdown ml-2">
-                            <button class="btn btn-sm btn-primary dropdown-toggle" style="width: 160px;" type="button" id="deparmentDropdown"
-                                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Department</button>
-                            <div class="dropdown-menu dropdown-menu-right" aria-labelledby="deparmentDropdown">
-                                <a class="dropdown-item" href="#"><i class="fas fa-building"></i> Deparment 1</a>
-                                <a class="dropdown-item" href="#"><i class="fas fa-building"></i> Department 2</a>
-                                <a class="dropdown-item" href="#"><i class="fas fa-building"></i> Department 3</a>
-                            </div>
+    <!-- Content Column -->
+    <div class="col-lg-12 mb-2">
+        <!-- Sales Forecast -->
+        <div class="card shadow mb-4">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-primary">Sales Forecast - Department {{ $selectedDept }}</h6>
+                <div class="d-flex">
+                    <button class="btn btn-sm btn-primary" style="width: 110px; height: 40px; font-size: 16px;">
+                        <i class="fas fa-store mr-2"></i> Store 1
+                    </button>
+                    <div class="dropdown ml-2">
+                        <button class="btn btn-sm btn-primary dropdown-toggle"
+                                style="width: 180px; height: 40px; font-size: 16px;"
+                                type="button"
+                                id="departmentDropdown"
+                                data-toggle="dropdown"
+                                aria-haspopup="true"
+                                aria-expanded="false">
+                            <i class="fas fa-building mr-2"></i> Department {{ $selectedDept }}
+                        </button>
+                        <div class="dropdown-menu dropdown-menu-right"
+                             aria-labelledby="departmentDropdown"
+                             style="font-size: 16px;">
+                            @for($i = 1; $i <= 10; $i++)
+                                <a class="dropdown-item" href="?department={{ $i }}">
+                                    <i class="fas fa-building mr-2"></i> Department {{ str_pad($i, 2, ' ', STR_PAD_LEFT) }}
+                                </a>
+                            @endfor
                         </div>
                     </div>
                 </div>
+            </div>
 
+            <div class="card-body" wire:ignore style="position: relative; height:400px;">
+                <canvas id="forecastChart"></canvas>
+            </div>
 
-                <div class="card-body" wire:ignore style="position: relative; height:400px;">
-                    <canvas id="forecastChart"></canvas>
-                </div>
-
-                @push('scripts')
-
-                <script>
-                document.addEventListener('DOMContentLoaded', function() {
-                    const ctx = document.getElementById('forecastChart').getContext('2d');
-
-                    new Chart(ctx, {
-                        type: 'line',
-                        data: {
-                            labels: @json($months),
-                            datasets: [
-                                {
-                                    label: 'Actual Sales',
-                                    data: @json($actualSales),
-                                    borderColor: '#4e73df',
-                                    backgroundColor: 'rgba(78, 115, 223, 0.05)',
-                                    tension: 0.3
-                                },
-                                {
-                                    label: 'Forecast Sales',
-                                    data: @json($forecastSales),
-                                    borderColor: '#e74a3b',
-                                    backgroundColor: 'rgba(231, 74, 59, 0.05)',
-                                    tension: 0.3
-                                }
-                            ]
-                        },
-                        options: {
-                            maintainAspectRatio: false,
-                            scales: {
-                                y: {
-                                    beginAtZero: true
-                                }
-                            }
-                        }
-                    });
-                });
-                </script>
-                @endpush
+            <div class="card-footer">
+                <small class="text-muted">
+                    Showing data for Department {{ $selectedDept }} |
+                    Last updated: {{ now()->format('M d, Y H:i') }}
+                </small>
             </div>
         </div>
     </div>
+</div>
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('forecastChart').getContext('2d');
+
+    const chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: @json($months),
+            datasets: [
+                {
+                    label: 'Actual Sales - Dept {{ $selectedDept }}',
+                    data: @json($actualSales),
+                    borderColor: '#4e73df',
+                    backgroundColor: 'rgba(78, 115, 223, 0.1)',
+                    borderWidth: 2,
+                    tension: 0.3,
+                    fill: true
+                },
+                {
+                    label: 'Forecast Sales - Dept {{ $selectedDept }}',
+                    data: @json($forecastSales),
+                    borderColor: '#e74a3b',
+                    backgroundColor: 'rgba(231, 74, 59, 0.1)',
+                    borderWidth: 2,
+                    borderDash: [5, 5],
+                    tension: 0.3,
+                    fill: false
+                }
+            ]
+        },
+        options: {
+            maintainAspectRatio: false,
+            responsive: true,
+            plugins: {
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': $' + context.parsed.y.toLocaleString();
+                        }
+                    }
+                },
+                legend: {
+                    position: 'top',
+                },
+                title: {
+                    display: true,
+                    text: 'Department {{ $selectedDept }} Sales Performance'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: false,
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value.toLocaleString();
+                        }
+                    },
+                    grid: {
+                        drawBorder: false
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+@endpush
 
     <div class="row">
 
@@ -233,7 +280,7 @@
                     <div class="card bg-primary text-white shadow">
                         <div class="card-body">
                             Primary
-                            <div class="text-white-50 small">#4e73df</div>
+                            <div class="text-white-50 small">#0043da</div>
                         </div>
                     </div>
                 </div>
