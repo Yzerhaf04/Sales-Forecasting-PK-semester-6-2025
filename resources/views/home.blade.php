@@ -20,7 +20,6 @@
     @endif
 
     <div class="row">
-
         <!-- Total Store Card -->
         <div class="col-xl-3 col-md-6 mb-4">
             <div class="card border-left-primary shadow h-100 py-2">
@@ -55,18 +54,14 @@
             </div>
         </div>
 
-        <!-- Best Performace Card -->
+        <!-- Best Performance Card -->
         <div class="col-xl-3 col-md-6 mb-4">
             <div class="card border-left-info shadow h-100 py-2">
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
                         <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Best Performace</div>
-                            <div class="row no-gutters align-items-center">
-                                <div class="col-auto">
-                                    <div class="h5 mb-0 mr-3 font-weight-bold text-gray-800">Store 2</div>
-                                </div>
-                            </div>
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Best Performance</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">Store 2</div>
                         </div>
                         <div class="col-auto">
                             <i class="fas fa-medal fa-2x text-gray-300"></i>
@@ -112,254 +107,185 @@
     </div>
 
     <div class="row">
-    <!-- Content Column -->
-    <div class="col-lg-12 mb-2">
-        <!-- Sales Forecast -->
-        <div class="card shadow mb-4">
-            <div class="card-header py-3 d-flex justify-content-between align-items-center">
-                <h6 class="m-0 font-weight-bold text-primary">Sales Forecast - Department {{ $selectedDept }}</h6>
-                <div class="d-flex">
-                    <button class="btn btn-sm btn-primary" style="width: 110px; height: 40px; font-size: 16px;">
-                        <i class="fas fa-store mr-2"></i> Store 1
-                    </button>
-                    <div class="dropdown ml-2">
-                        <button class="btn btn-sm btn-primary dropdown-toggle"
-                                style="width: 180px; height: 40px; font-size: 16px;"
-                                type="button"
-                                id="departmentDropdown"
-                                data-toggle="dropdown"
-                                aria-haspopup="true"
-                                aria-expanded="false">
-                            <i class="fas fa-building mr-2"></i> Department {{ $selectedDept }}
-                        </button>
-                        <div class="dropdown-menu dropdown-menu-right"
-                             aria-labelledby="departmentDropdown"
-                             style="font-size: 16px;">
-                            @for($i = 1; $i <= 10; $i++)
-                                <a class="dropdown-item" href="?department={{ $i }}">
-                                    <i class="fas fa-building mr-2"></i> Department {{ str_pad($i, 2, ' ', STR_PAD_LEFT) }}
+        <div class="col-lg-12 mb-2">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary">Sales Forecast - Department {{ $selectedDept }}</h6>
+                    <div class="d-flex">
+                        <!-- Dropdown Store -->
+                        <div class="dropdown ml-2">
+                            <button class="btn btn-sm btn-primary dropdown-toggle"
+                                    style="width: 130px; height: 40px; font-size: 16px;"
+                                    type="button"
+                                    id="storeDropdown"
+                                    data-toggle="dropdown"
+                                    aria-haspopup="true"
+                                    aria-expanded="false">
+                                <i class="fas fa-store mr-2"></i> Store {{ $selectedStore }}
+                            </button>
+                            <div class="dropdown-menu dropdown-menu-right"
+                                 aria-labelledby="storeDropdown"
+                                 style="font-size: 16px;">
+                                @for($s = 1; $s <= 5; $s++)
+                                    <a class="dropdown-item" href="?store={{ $s }}&department={{ $selectedDept }}&period={{ $selectedPeriod }}">
+                                        <i class="fas fa-store mr-2"></i> Store {{ $s }}
+                                    </a>
+                                @endfor
+                            </div>
+                        </div>
+
+                        <!-- Dropdown Department -->
+                        <div class="dropdown ml-2">
+                            <button class="btn btn-sm btn-primary dropdown-toggle"
+                                    style="width: 180px; height: 40px; font-size: 16px;"
+                                    type="button"
+                                    id="departmentDropdown"
+                                    data-toggle="dropdown"
+                                    aria-haspopup="true"
+                                    aria-expanded="false">
+                                <i class="fas fa-building mr-2"></i> Department {{ $selectedDept }}
+                            </button>
+                            <div class="dropdown-menu dropdown-menu-right"
+                                 aria-labelledby="departmentDropdown"
+                                 style="font-size: 16px;">
+                                @for($i = 1; $i <= 10; $i++)
+                                    <a class="dropdown-item" href="?store={{ $selectedStore }}&department={{ $i }}&period={{ $selectedPeriod }}">
+                                        <i class="fas fa-building mr-2"></i> Department {{ str_pad($i, 2, ' ', STR_PAD_LEFT) }}
+                                    </a>
+                                @endfor
+                            </div>
+                        </div>
+
+                        <!-- Dropdown Period -->
+                        <div class="dropdown ml-2">
+                            <button class="btn btn-sm btn-primary dropdown-toggle"
+                                    style="width: 130px; height: 40px; font-size: 16px;"
+                                    type="button"
+                                    id="periodDropdown"
+                                    data-toggle="dropdown"
+                                    aria-haspopup="true"
+                                    aria-expanded="false">
+                                <i class="fas fa-clock mr-2"></i> {{ ucfirst($selectedPeriod) }}
+                            </button>
+                            <div class="dropdown-menu dropdown-menu-right"
+                                 aria-labelledby="periodDropdown"
+                                 style="font-size: 16px;">
+                                <a class="dropdown-item" href="?store={{ $selectedStore }}&department={{ $selectedDept }}&period=daily">
+                                    <i class="fas fa-calendar-day mr-2"></i> Harian
                                 </a>
-                            @endfor
+                                <a class="dropdown-item" href="?store={{ $selectedStore }}&department={{ $selectedDept }}&period=weekly">
+                                    <i class="fas fa-calendar-week mr-2"></i> Mingguan
+                                </a>
+                                <a class="dropdown-item" href="?store={{ $selectedStore }}&department={{ $selectedDept }}&period=monthly">
+                                    <i class="fas fa-calendar-alt mr-2"></i> Bulanan
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <div class="card-body" wire:ignore style="position: relative; height:400px;">
-                <canvas id="forecastChart"></canvas>
-            </div>
+                <div class="card-body" wire:ignore style="position: relative; height:400px;">
+                    <canvas id="forecastChart"></canvas>
+                </div>
 
-            <div class="card-footer">
-                <small class="text-muted">
-                    Showing data for Department {{ $selectedDept }} |
-                    Last updated: {{ now()->format('M d, Y H:i') }}
-                </small>
+                <div class="card-footer">
+                    <small class="text-muted">
+                        Showing data from {{ $dataStart }} to {{ $dataEnd }} | Department {{ $selectedDept }} | Last updated: {{ now()->format('M d, Y H:i') }}
+                    </small>
+                </div>
             </div>
         </div>
     </div>
-</div>
 
-@push('scripts')
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const ctx = document.getElementById('forecastChart').getContext('2d');
+    @push('scripts')
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const ctx = document.getElementById('forecastChart').getContext('2d');
 
-    const chart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: @json($months),
-            datasets: [
-                {
-                    label: 'Actual Sales - Dept {{ $selectedDept }}',
-                    data: @json($actualSales),
-                    borderColor: '#4e73df',
-                    backgroundColor: 'rgba(78, 115, 223, 0.1)',
-                    borderWidth: 2,
-                    tension: 0.3,
-                    fill: true
-                },
-                {
-                    label: 'Forecast Sales - Dept {{ $selectedDept }}',
-                    data: @json($forecastSales),
-                    borderColor: '#e74a3b',
-                    backgroundColor: 'rgba(231, 74, 59, 0.1)',
-                    borderWidth: 2,
-                    borderDash: [5, 5],
-                    tension: 0.3,
-                    fill: false
-                }
-            ]
-        },
-        options: {
-            maintainAspectRatio: false,
-            responsive: true,
-            plugins: {
-                tooltip: {
-                    mode: 'index',
-                    intersect: false,
-                    callbacks: {
-                        label: function(context) {
-                            return context.dataset.label + ': $' + context.parsed.y.toLocaleString();
-                        }
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: {!! json_encode(array_merge($labelsActual, $labelsForecast)) !!},
+                datasets: [
+                    {
+                        label: 'Actual Sales - Dept {{ $selectedDept }}',
+                        data: {!! json_encode($actualPart) !!},
+                        borderColor: '#4e73df',
+                        backgroundColor: 'rgba(78, 115, 223, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 2
+                    },
+                    {
+                        label: 'Forecast (30 Hari Terakhir)',
+                        data: Array({{ count($actualPart) }}).fill(null).concat({!! json_encode($forecastPart) !!}),
+                        borderColor: '#e74a3b',
+                        backgroundColor: 'rgba(231, 74, 59, 0.1)',
+                        borderDash: [5, 5],
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.3,
+                        pointRadius: 2
                     }
-                },
-                legend: {
-                    position: 'top',
-                },
-                title: {
-                    display: true,
-                    text: 'Department {{ $selectedDept }} Sales Performance'
-                }
+                ]
             },
-            scales: {
-                y: {
-                    beginAtZero: false,
-                    ticks: {
-                        callback: function(value) {
-                            return '$' + value.toLocaleString();
+            options: {
+                maintainAspectRatio: false,
+                responsive: true,
+                plugins: {
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        callbacks: {
+                            label: function(context) {
+                                return context.dataset.label + ': $' + context.parsed.y.toLocaleString();
+                            }
                         }
                     },
-                    grid: {
-                        drawBorder: false
+                    legend: { position: 'top' },
+                    title: {
+                        display: true,
+                        text: 'Department {{ $selectedDept }} Sales Performance'
+                    },
+                    annotation: {
+                        annotations: {
+                            lineForecastStart: {
+                                type: 'line',
+                                xMin: '{{ $transitionLabel }}',
+                                xMax: '{{ $transitionLabel }}',
+                                borderColor: 'purple',
+                                borderWidth: 2,
+                                borderDash: [5, 5],
+                                label: {
+                                    enabled: true,
+                                    content: 'Start Forecast',
+                                    position: 'start',
+                                    color: '#6c757d',
+                                    backgroundColor: '#fff',
+                                    font: { size: 10 }
+                                }
+                            }
+                        }
                     }
                 },
-                x: {
-                    grid: {
-                        display: false
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        ticks: {
+                            callback: function(value) {
+                                return '$' + value.toLocaleString();
+                            }
+                        },
+                        grid: { drawBorder: false }
+                    },
+                    x: {
+                        grid: { display: false }
                     }
                 }
             }
-        }
+        });
     });
-});
-</script>
-@endpush
-
-    <div class="row">
-
-        <!-- Content Column -->
-        <div class="col-lg-6 mb-4">
-
-            <!-- Project Card Example -->
-            <div class="card shadow mb-4">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">Projects</h6>
-                </div>
-                <div class="card-body">
-                    <h4 class="small font-weight-bold">Server Migration <span class="float-right">20%</span></h4>
-                    <div class="progress mb-4">
-                        <div class="progress-bar bg-danger" role="progressbar" style="width: 20%" aria-valuenow="20"
-                            aria-valuemin="0" aria-valuemax="100"></div>
-                    </div>
-                    <h4 class="small font-weight-bold">Sales Tracking <span class="float-right">40%</span></h4>
-                    <div class="progress mb-4">
-                        <div class="progress-bar bg-warning" role="progressbar" style="width: 40%" aria-valuenow="40"
-                            aria-valuemin="0" aria-valuemax="100"></div>
-                    </div>
-                    <h4 class="small font-weight-bold">Customer Database <span class="float-right">60%</span></h4>
-                    <div class="progress mb-4">
-                        <div class="progress-bar" role="progressbar" style="width: 60%" aria-valuenow="60"
-                            aria-valuemin="0" aria-valuemax="100"></div>
-                    </div>
-                    <h4 class="small font-weight-bold">Payout Details <span class="float-right">80%</span></h4>
-                    <div class="progress mb-4">
-                        <div class="progress-bar bg-info" role="progressbar" style="width: 80%" aria-valuenow="80"
-                            aria-valuemin="0" aria-valuemax="100"></div>
-                    </div>
-                    <h4 class="small font-weight-bold">Account Setup <span class="float-right">Complete!</span></h4>
-                    <div class="progress">
-                        <div class="progress-bar bg-success" role="progressbar" style="width: 100%" aria-valuenow="100"
-                            aria-valuemin="0" aria-valuemax="100"></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Color System -->
-            <div class="row">
-                <div class="col-lg-6 mb-4">
-                    <div class="card bg-primary text-white shadow">
-                        <div class="card-body">
-                            Primary
-                            <div class="text-white-50 small">#0043da</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-lg-6 mb-4">
-                    <div class="card bg-success text-white shadow">
-                        <div class="card-body">
-                            Success
-                            <div class="text-white-50 small">#1cc88a</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-lg-6 mb-4">
-                    <div class="card bg-info text-white shadow">
-                        <div class="card-body">
-                            Info
-                            <div class="text-white-50 small">#36b9cc</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-lg-6 mb-4">
-                    <div class="card bg-warning text-white shadow">
-                        <div class="card-body">
-                            Warning
-                            <div class="text-white-50 small">#f6c23e</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-lg-6 mb-4">
-                    <div class="card bg-danger text-white shadow">
-                        <div class="card-body">
-                            Danger
-                            <div class="text-white-50 small">#e74a3b</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-lg-6 mb-4">
-                    <div class="card bg-secondary text-white shadow">
-                        <div class="card-body">
-                            Secondary
-                            <div class="text-white-50 small">#858796</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-        </div>
-
-        <div class="col-lg-6 mb-4">
-
-            <!-- Illustrations -->
-            <div class="card shadow mb-4">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">Illustrations</h6>
-                </div>
-                <div class="card-body">
-                    <div class="text-center">
-                        <img class="img-fluid px-3 px-sm-4 mt-3 mb-4" style="width: 25rem;"
-                            src="{{ asset('img/svg/undraw_editable_dywm.svg') }}" alt="">
-                    </div>
-                    <p>Add some quality, svg illustrations to your project courtesy of <a target="_blank" rel="nofollow"
-                            href="https://undraw.co/">unDraw</a>, a constantly updated collection of
-                        beautiful svg images that you can use completely free and without attribution!</p>
-                    <a target="_blank" rel="nofollow" href="https://undraw.co/">Browse Illustrations on unDraw →</a>
-                </div>
-            </div>
-
-            <!-- Approach -->
-            <div class="card shadow mb-4">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">Development Approach</h6>
-                </div>
-                <div class="card-body">
-                    <p>SB Admin 2 makes extensive use of Bootstrap 4 utility classes in order to reduce CSS bloat and
-                        poor page performance. Custom CSS classes are used to create custom components and custom
-                        utility classes.</p>
-                    <p class="mb-0">Before working with this theme, you should become familiar with the Bootstrap
-                        framework, especially the utility classes.</p>
-                </div>
-            </div>
-        </div>
-    </div>
+    </script>
+    @endpush
 @endsection
