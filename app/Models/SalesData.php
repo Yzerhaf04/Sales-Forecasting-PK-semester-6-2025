@@ -6,17 +6,22 @@ use Illuminate\Database\Eloquent\Model;
 
 class SalesData extends Model
 {
+    protected $table = 'sales_data';
+    protected $guarded = [];
+
+    public $timestamps = true;
+
     protected $fillable = [
         'store',
-        'department',
+        'dept',
         'date',
-        'sales',
+        'weekly_sales',
     ];
-    
-    public $timestamps = false;
 
     protected $casts = [
         'date' => 'date',
         'weekly_sales' => 'float',
+        'store' => 'integer',
+        'dept' => 'integer',
     ];
 }

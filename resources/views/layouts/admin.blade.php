@@ -108,7 +108,7 @@
                         <i class="fa fa-bars"></i>
                     </button>
 
-                    <!-- Topbar Search -->
+                    {{-- <!-- Topbar Search -->
                     <form
                         class="d-none d-sm-inline-block form-inline mr-auto ml-md-3 my-2 my-md-0 mw-100 navbar-search">
                         <div class="input-group">
@@ -120,7 +120,7 @@
                                 </button>
                             </div>
                         </div>
-                    </form>
+                    </form> --}}
 
                     <!-- Topbar Navbar -->
                     <ul class="navbar-nav ml-auto">
@@ -149,7 +149,7 @@
                             </div>
                         </li>
 
-                        <!-- Nav Item - Alerts -->
+                        {{-- <!-- Nav Item - Alerts -->
                         <li class="nav-item dropdown no-arrow mx-1">
                             <a class="nav-link dropdown-toggle" href="#" id="alertsDropdown" role="button"
                                 data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -200,9 +200,9 @@
                                 <a class="dropdown-item text-center small text-gray-500" href="#">Show All
                                     Alerts</a>
                             </div>
-                        </li>
+                        </li> --}}
 
-                        <!-- Nav Item - Messages -->
+                        {{-- <!-- Nav Item - Messages -->
                         <li class="nav-item dropdown no-arrow mx-1">
                             <a class="nav-link dropdown-toggle" href="#" id="messagesDropdown" role="button"
                                 data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -267,9 +267,9 @@
                                 <a class="dropdown-item text-center small text-gray-500" href="#">Read More
                                     Messages</a>
                             </div>
-                        </li>
+                        </li> --}}
 
-                        <div class="topbar-divider d-none d-sm-block"></div>
+                        {{-- <div class="topbar-divider d-none d-sm-block"></div> --}}
 
                         <!-- Nav Item - User Information -->
                         <li class="nav-item dropdown no-arrow">
@@ -367,10 +367,10 @@
 
     @section('scripts')
         <script>
-            $(document).ready(function() {
-                // Data untuk forecasting chart
-                var ctx = document.getElementById('forecastChart').getContext('2d');
-                var myChart = new Chart(ctx, {
+            document.addEventListener('DOMContentLoaded', function() {
+                const ctx = document.getElementById('forecastChart').getContext('2d');
+
+                new Chart(ctx, {
                     type: 'line',
                     data: {
                         labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov',
@@ -384,7 +384,9 @@
                                 borderWidth: 2,
                                 pointBackgroundColor: 'rgba(78, 115, 223, 1)',
                                 pointBorderColor: '#fff',
-                                pointRadius: 3
+                                pointRadius: 3,
+                                fill: true,
+                                tension: 0.3,
                             },
                             {
                                 label: 'Forecast',
@@ -395,7 +397,9 @@
                                 pointBackgroundColor: 'rgba(28, 200, 138, 1)',
                                 pointBorderColor: '#fff',
                                 pointRadius: 3,
-                                borderDash: [5, 5]
+                                borderDash: [5, 5],
+                                fill: false,
+                                tension: 0.3,
                             }
                         ]
                     },
@@ -411,54 +415,54 @@
                             }
                         },
                         scales: {
-                            xAxes: [{
-                                gridLines: {
-                                    display: false,
-                                    drawBorder: false
-                                },
+                            x: {
                                 ticks: {
-                                    maxTicksLimit: 12
+                                    maxTicksLimit: 12,
+                                },
+                                grid: {
+                                    display: false,
+                                    drawBorder: false,
                                 }
-                            }],
-                            yAxes: [{
+                            },
+                            y: {
                                 ticks: {
                                     maxTicksLimit: 5,
                                     padding: 10,
-                                    callback: function(value, index, values) {
+                                    callback: function(value) {
                                         return '$' + value;
                                     }
                                 },
-                                gridLines: {
+                                grid: {
                                     color: "rgb(234, 236, 244)",
                                     zeroLineColor: "rgb(234, 236, 244)",
                                     drawBorder: false,
                                     borderDash: [2],
                                     zeroLineBorderDash: [2]
                                 }
-                            }]
+                            }
                         },
-                        legend: {
-                            display: true,
-                            position: 'top'
-                        },
-                        tooltips: {
-                            backgroundColor: "rgb(255,255,255)",
-                            bodyFontColor: "#858796",
-                            titleMarginBottom: 10,
-                            titleFontColor: '#6e707e',
-                            titleFontSize: 14,
-                            borderColor: '#dddfeb',
-                            borderWidth: 1,
-                            xPadding: 15,
-                            yPadding: 15,
-                            displayColors: false,
-                            intersect: false,
-                            mode: 'index',
-                            caretPadding: 10,
-                            callbacks: {
-                                label: function(tooltipItem, chart) {
-                                    var datasetLabel = chart.datasets[tooltipItem.datasetIndex].label || '';
-                                    return datasetLabel + ': $' + tooltipItem.yLabel;
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top'
+                            },
+                            tooltip: {
+                                backgroundColor: "rgb(255,255,255)",
+                                bodyColor: "#858796",
+                                titleColor: '#6e707e',
+                                titleFont: {
+                                    size: 14
+                                },
+                                borderColor: '#dddfeb',
+                                borderWidth: 1,
+                                padding: 15,
+                                displayColors: false,
+                                intersect: false,
+                                mode: 'index',
+                                callbacks: {
+                                    label: function(context) {
+                                        return context.dataset.label + ': $' + context.parsed.y;
+                                    }
                                 }
                             }
                         }

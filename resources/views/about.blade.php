@@ -59,10 +59,10 @@
 
                                 <div class="card-body text-center position-relative" style="z-index: 1;">
                                     <div style="width: 150px; height: 150px; margin: 0 auto; overflow: hidden; border-radius: 50%;">
-                                        <img src="{{ asset('img/member2.jpg') }}"
+                                        <img src="{{ asset('img/member1.jpg') }}"
                                              style="width: 100%; height: 100%; object-fit: cover;" alt="Member 2">
                                     </div>
-                                    <h6 class="mt-3 font-weight-bold text-primary">M Dzaky Naufal A</h6>
+                                    <h6 class="mt-3 font-weight-bold text-primary">Dzaky Naufal A</h6>
                                 </div>
                             </div>
                         </div>

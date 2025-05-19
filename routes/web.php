@@ -5,8 +5,6 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ChatbotController;
-use App\Http\Controllers\SalesDataController;
-
 
 Route::get('/', function () {
     return redirect()->route('login');
@@ -20,8 +18,6 @@ Route::put('/profile', [ProfileController::class, 'update'])->name('profile.upda
 
 Route::get('/chatbot', [ChatbotController::class, 'index'])->name('chatbot');
 Route::post('/chatbot/response', [ChatbotController::class, 'response'])->name('chatbot.response');
-Route::get('/grafik', [SalesDataController::class, 'index']);
-
 Route::get('/about', function () {
     return view('about');
 })->name('about');
