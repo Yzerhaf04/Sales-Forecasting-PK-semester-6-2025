@@ -209,26 +209,20 @@
                     </div>
                 </div>
 
-                <div class="card-body" wire:ignore>
-                    {{-- Kontainer chart dibuat responsif --}}
-                    <div style="width: 100%; height: 400px; position: relative;">
+                <div class="card-body" wire:ignore style="overflow-x: auto;">
+                    <div style="width: 1000px; min-width: 1200px; height: 400px;">
                         <canvas id="forecastChart"></canvas>
                     </div>
                 </div>
 
-                <div class="card-footer text-center">
+                <div class="card-footer">
                     <small class="text-muted">
-                        Menampilkan data untuk Store {{ $currentFilterStore }} / Department {{ $currentFilterDept }} |
+                        Menampilkan data untuk Store {{ $currentFilterStore }} | Department {{ $currentFilterDept }} |
                         Periode: {{ $periodDisplayLabels[$currentFilterPeriod] ?? ucfirst($currentFilterPeriod) }} | Jenis
                         Grafik: {{ $chartTypeDisplayLabels[$currentFilterChartType] ?? ucfirst($currentFilterChartType) }}
                         <br>
-                        @if (isset($lastUpdated) && $lastUpdated)
-                            Data terakhir diperbarui:
-                            {{ \Carbon\Carbon::parse($lastUpdated)->translatedFormat('d F Y H:i') }}
-                            {{-- Menggunakan translatedFormat untuk bahasa Indonesia jika Carbon locale diatur --}}
-                        @else
-                            Data terakhir diperbarui: N/A
-                        @endif
+                        Data terakhir diperbarui:
+                        {{ \Carbon\Carbon::parse($lastUpdated)->format('M d, Y') }}
                     </small>
                 </div>
             </div>

@@ -30,72 +30,96 @@ class HomeController extends Controller
         $sumOfActualSales = 0;
         $sumOfPastForecastSales = 0;
 
-        // 1. Tentukan tanggal terakhir data keseluruhan untuk store dan dept yang dipilih
-        $overallLastDateString = SalesData::where('dept', $selectedDept)
+        // 1. Tentukan tanggal terakhir data KESELURUHAN (harian)
+        $overallLastDailyDateString = SalesData::where('dept', $selectedDept)
             ->where('store', $selectedStore)
             ->max('date');
 
-        if ($overallLastDateString) {
-            $overallLastDate = Carbon::parse($overallLastDateString);
+        if ($overallLastDailyDateString) {
+            $overallLastDailyDate = Carbon::parse($overallLastDailyDateString)->startOfDay();
+            $forecastBoundaryStartDate = $overallLastDailyDate->copy()->subDays(89)->startOfDay();
 
-            // 2. Tentukan tanggal mulai untuk "data forecast dari masa lalu"
-            // (90 hari sebelum overallLastDate, inklusif)
-            $forecastStartDateInPast = $overallLastDate->copy()->subDays(89);
-
-            // 3. Ambil Data Aktual Historis (data SEBELUM periode 90 hari terakhir)
-            $rawActualHistoricalSales = SalesData::where('dept', $selectedDept)
+            // 3. Ambil Data Aktual Historis HARIAN
+            $rawDailyActualHistoricalSales = SalesData::where('dept', $selectedDept)
                 ->where('store', $selectedStore)
-                ->where('date', '<', $forecastStartDateInPast->toDateString())
+                ->where('date', '<', $forecastBoundaryStartDate->toDateString())
                 ->orderBy('date', 'asc')
                 ->get(['date', 'daily_sales'])
                 ->map(function ($item) {
                     return [
-                        'date' => Carbon::parse($item->date),
+                        'date' => Carbon::parse($item->date)->startOfDay(),
                         'sales' => (float) $item->daily_sales,
                     ];
                 });
+            $sumOfActualSales = $rawDailyActualHistoricalSales->sum('sales');
 
-            $groupedActualHistoricalSales = $this->groupSalesData($rawActualHistoricalSales, $period);
-            $actualLabels = array_keys($groupedActualHistoricalSales);
-            // $actualSalesValues = array_values($groupedActualHistoricalSales); // Tidak langsung digunakan, tapi bisa untuk sum
-            $sumOfActualSales = $rawActualHistoricalSales->sum('sales');
-
-
-            // 4. Ambil Data "Forecast dari Masa Lalu" (data DALAM periode 90 hari terakhir)
-            $rawForecastSalesFromPast = SalesData::where('dept', $selectedDept)
+            // 4. Ambil Data "Forecast dari Masa Lalu" HARIAN
+            $rawDailyForecastSalesFromPast = SalesData::where('dept', $selectedDept)
                 ->where('store', $selectedStore)
                 ->whereBetween('date', [
-                    $forecastStartDateInPast->toDateString(),
-                    $overallLastDate->toDateString()
+                    $forecastBoundaryStartDate->toDateString(),
+                    $overallLastDailyDate->toDateString()
                 ])
                 ->orderBy('date', 'asc')
                 ->get(['date', 'daily_sales'])
                 ->map(function ($item) {
                     return [
-                        'date' => Carbon::parse($item->date),
-                        'sales' => (float) $item->daily_sales, // Ini adalah nilai sales aktual, tapi dilabeli sebagai forecast
+                        'date' => Carbon::parse($item->date)->startOfDay(),
+                        'sales' => (float) $item->daily_sales,
                     ];
                 });
+            $sumOfPastForecastSales = $rawDailyForecastSalesFromPast->sum('sales');
 
-            $groupedForecastSalesFromPast = $this->groupSalesData($rawForecastSalesFromPast, $period);
-            $forecastLabelsFromPast = array_keys($groupedForecastSalesFromPast);
-            // $forecastSalesValuesFromPast = array_values($groupedForecastSalesFromPast); // Tidak langsung digunakan, tapi bisa untuk sum
-            $sumOfPastForecastSales = $rawForecastSalesFromPast->sum('sales');
+            // 5. Agregasi kedua set data harian mentah ke periode tampilan ($displayPeriod)
+            $groupedActualHistoricalSales = $this->groupSalesData($rawDailyActualHistoricalSales, $period);
+            $actualLabels = !empty($groupedActualHistoricalSales) ? array_keys($groupedActualHistoricalSales) : [];
 
-            // 5. Gabungkan semua label (aktual historis + "forecast dari masa lalu") dan urutkan
+            $groupedForecastSalesFromPast = $this->groupSalesData($rawDailyForecastSalesFromPast, $period);
+            $forecastLabelsFromPast = !empty($groupedForecastSalesFromPast) ? array_keys($groupedForecastSalesFromPast) : [];
+
+            // 6. Gabungkan semua label dan urutkan
             $allCombinedLabels = $this->mergeAndSortLabels($actualLabels, $forecastLabelsFromPast, $period);
 
-            // 6. Siapkan array sales aktual dan "forecast dari masa lalu" yang sejajar dengan $allCombinedLabels
+            // --- MODIFIKASI UNTUK MEMBUAT TITIK PENGHUBUNG ---
+            $processedForecastDataForChart = $groupedForecastSalesFromPast; // Salin data forecast asli yang sudah diagregasi
+
+            if (!empty($actualLabels) && !empty($groupedActualHistoricalSales)) {
+                $lastActualLabelWithValue = null;
+                $lastActualValue = null;
+
+                // Dapatkan label dan nilai terakhir dari data aktual yang sudah diagregasi
+                if (count($actualLabels) > 0) {
+                    $potentialLastActualLabel = end($actualLabels); // Label terakhir dari data aktual
+                    // Pastikan label tersebut ada dan nilainya tidak null di data aktual yang sudah diagregasi
+                    if (isset($groupedActualHistoricalSales[$potentialLastActualLabel]) && !is_null($groupedActualHistoricalSales[$potentialLastActualLabel])) {
+                        $lastActualLabelWithValue = $potentialLastActualLabel;
+                        $lastActualValue = $groupedActualHistoricalSales[$lastActualLabelWithValue];
+                    }
+                }
+
+                if ($lastActualLabelWithValue !== null && $lastActualValue !== null) {
+                    // Set titik data pada label ini di data forecast (yang akan diplot)
+                    // agar sama dengan titik terakhir data aktual.
+                    // Ini akan membuat garis menyambung di chart.
+                    $processedForecastDataForChart[$lastActualLabelWithValue] = $lastActualValue;
+                }
+            }
+            // --- AKHIR MODIFIKASI ---
+
+            // 7. Siapkan array sales aktual dan "forecast dari masa lalu" yang sejajar dengan $allCombinedLabels
+            // Inisialisasi ulang untuk memastikan array bersih sebelum diisi
+            $alignedActualSales = [];
+            $alignedForecastSales = [];
             foreach ($allCombinedLabels as $label) {
                 $alignedActualSales[] = $groupedActualHistoricalSales[$label] ?? null;
-                $alignedForecastSales[] = $groupedForecastSalesFromPast[$label] ?? null;
+                // Gunakan data forecast yang sudah diproses untuk chart
+                $alignedForecastSales[] = $processedForecastDataForChart[$label] ?? null;
             }
 
-            // 7. Format label untuk ditampilkan di view
-            $labelsForView = array_map(function($label) use ($period) {
+            // 8. Format label untuk ditampilkan di view
+            $labelsForView = array_map(function ($label) use ($period) {
                 return $this->formatLabelForView($label, $period);
             }, $allCombinedLabels);
-
         } else {
             // Tidak ada data sama sekali untuk store dan dept yang dipilih
             // Semua array data akan kosong, yang akan ditangani oleh view.
@@ -110,11 +134,11 @@ class HomeController extends Controller
         if ($lastDatabaseUpdate) {
             $lastDatabaseUpdate = Carbon::parse($lastDatabaseUpdate)->translatedFormat('d F Y H:i');
         } else {
-             // Jika tidak ada data sama sekali, $overallLastDateString juga null.
-             // Cek max updated_at dari seluruh tabel sebagai fallback.
+            // Jika tidak ada data sama sekali, $overallLastDateString juga null.
+            // Cek max updated_at dari seluruh tabel sebagai fallback.
             $lastUpdateOverall = SalesData::max('updated_at');
             if ($lastUpdateOverall) {
-                 $lastDatabaseUpdate = Carbon::parse($lastUpdateOverall)->translatedFormat('d F Y H:i');
+                $lastDatabaseUpdate = Carbon::parse($lastUpdateOverall)->translatedFormat('d F Y H:i');
             }
         }
 
@@ -160,8 +184,8 @@ class HomeController extends Controller
 
         // Jumlahkan sales untuk setiap grup dan urutkan berdasarkan kunci (label periode)
         return $grouped->map(fn($group) => $group->sum('sales'))
-                       ->sortKeys()
-                       ->toArray();
+            ->sortKeys()
+            ->toArray();
     }
 
     /**
