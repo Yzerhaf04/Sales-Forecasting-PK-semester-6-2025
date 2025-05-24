@@ -6,8 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class SalesData extends Model
 {
+
     protected $table = 'sales_data';
-    protected $guarded = [];
 
     public $timestamps = true;
 
@@ -15,12 +15,13 @@ class SalesData extends Model
         'store',
         'dept',
         'date',
-        'weekly_sales',
+        'daily_sales',
     ];
+
 
     protected $casts = [
         'date' => 'date',
-        'weekly_sales' => 'float',
+        'daily_sales' => 'decimal:2',
         'store' => 'integer',
         'dept' => 'integer',
     ];

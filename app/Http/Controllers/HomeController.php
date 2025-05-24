@@ -5,8 +5,8 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\SalesData;
-use App\Models\ForecastData;
 use Carbon\Carbon;
+use Illuminate\Support\Collection;
 
 class HomeController extends Controller
 {
@@ -21,150 +21,194 @@ class HomeController extends Controller
         $selectedStore = $request->input('store', 1);
         $period = $request->input('period', 'monthly');
 
-        // Set locale Carbon ke bahasa Indonesia
         Carbon::setLocale('id');
 
-        // Ambil data sales aktual
-        $rawSales = SalesData::where('dept', $selectedDept)
+        // Variabel untuk menampung hasil akhir
+        $labelsForView = [];
+        $alignedActualSales = [];
+        $alignedForecastSales = [];
+        $sumOfActualSales = 0;
+        $sumOfPastForecastSales = 0;
+
+        // 1. Tentukan tanggal terakhir data keseluruhan untuk store dan dept yang dipilih
+        $overallLastDateString = SalesData::where('dept', $selectedDept)
             ->where('store', $selectedStore)
-            ->orderBy('date')
-            ->get(['date', 'weekly_sales'])
-            ->map(function ($item) {
-                return [
-                    'date' => Carbon::parse($item->date),
-                    'sales' => (float) $item->weekly_sales,
-                ];
-            });
+            ->max('date');
 
-        // Grouping data aktual sesuai periode
-        $groupedData = $this->groupSalesData($rawSales, $period);
-        $actualLabels = array_keys($groupedData);
-        $actualSales = array_values($groupedData);
+        if ($overallLastDateString) {
+            $overallLastDate = Carbon::parse($overallLastDateString);
 
-        // Ambil data forecast
-        $forecastData = ForecastData::where('dept_id', $selectedDept)
-            ->where('period', $period)
-            ->orderBy('forecast_date')
-            ->get(['forecast_date', 'forecast_sales']);
+            // 2. Tentukan tanggal mulai untuk "data forecast dari masa lalu"
+            // (90 hari sebelum overallLastDate, inklusif)
+            $forecastStartDateInPast = $overallLastDate->copy()->subDays(89);
 
-        // Tentukan tanggal terakhir actual sales dengan aman
-        if (empty($actualLabels)) {
-            $lastActualDate = now();
+            // 3. Ambil Data Aktual Historis (data SEBELUM periode 90 hari terakhir)
+            $rawActualHistoricalSales = SalesData::where('dept', $selectedDept)
+                ->where('store', $selectedStore)
+                ->where('date', '<', $forecastStartDateInPast->toDateString())
+                ->orderBy('date', 'asc')
+                ->get(['date', 'daily_sales'])
+                ->map(function ($item) {
+                    return [
+                        'date' => Carbon::parse($item->date),
+                        'sales' => (float) $item->daily_sales,
+                    ];
+                });
+
+            $groupedActualHistoricalSales = $this->groupSalesData($rawActualHistoricalSales, $period);
+            $actualLabels = array_keys($groupedActualHistoricalSales);
+            // $actualSalesValues = array_values($groupedActualHistoricalSales); // Tidak langsung digunakan, tapi bisa untuk sum
+            $sumOfActualSales = $rawActualHistoricalSales->sum('sales');
+
+
+            // 4. Ambil Data "Forecast dari Masa Lalu" (data DALAM periode 90 hari terakhir)
+            $rawForecastSalesFromPast = SalesData::where('dept', $selectedDept)
+                ->where('store', $selectedStore)
+                ->whereBetween('date', [
+                    $forecastStartDateInPast->toDateString(),
+                    $overallLastDate->toDateString()
+                ])
+                ->orderBy('date', 'asc')
+                ->get(['date', 'daily_sales'])
+                ->map(function ($item) {
+                    return [
+                        'date' => Carbon::parse($item->date),
+                        'sales' => (float) $item->daily_sales, // Ini adalah nilai sales aktual, tapi dilabeli sebagai forecast
+                    ];
+                });
+
+            $groupedForecastSalesFromPast = $this->groupSalesData($rawForecastSalesFromPast, $period);
+            $forecastLabelsFromPast = array_keys($groupedForecastSalesFromPast);
+            // $forecastSalesValuesFromPast = array_values($groupedForecastSalesFromPast); // Tidak langsung digunakan, tapi bisa untuk sum
+            $sumOfPastForecastSales = $rawForecastSalesFromPast->sum('sales');
+
+            // 5. Gabungkan semua label (aktual historis + "forecast dari masa lalu") dan urutkan
+            $allCombinedLabels = $this->mergeAndSortLabels($actualLabels, $forecastLabelsFromPast, $period);
+
+            // 6. Siapkan array sales aktual dan "forecast dari masa lalu" yang sejajar dengan $allCombinedLabels
+            foreach ($allCombinedLabels as $label) {
+                $alignedActualSales[] = $groupedActualHistoricalSales[$label] ?? null;
+                $alignedForecastSales[] = $groupedForecastSalesFromPast[$label] ?? null;
+            }
+
+            // 7. Format label untuk ditampilkan di view
+            $labelsForView = array_map(function($label) use ($period) {
+                return $this->formatLabelForView($label, $period);
+            }, $allCombinedLabels);
+
         } else {
-            if ($period === 'monthly') {
-                // Parsing format Y-m jadi tanggal Carbon, karena di groupSalesData kita ubah format monthly jadi Y-m
-                $lastActualDate = Carbon::createFromFormat('Y-m', end($actualLabels))->startOfMonth();
-            } else {
-                $lastActualDate = Carbon::createFromFormat('Y-m-d', end($actualLabels));
-            }
+            // Tidak ada data sama sekali untuk store dan dept yang dipilih
+            // Semua array data akan kosong, yang akan ditangani oleh view.
         }
 
-        $forecastLabels = [];
-        $forecastSales = [];
-
-        foreach ($forecastData as $item) {
-            $forecastDate = Carbon::parse($item->forecast_date);
-            if ($forecastDate->greaterThan($lastActualDate)) {
-                $label = $period === 'monthly'
-                    ? $forecastDate->format('Y-m')  // simpan label forecast dalam format Y-m (mirip actual)
-                    : $forecastDate->format('Y-m-d');
-
-                $forecastLabels[] = $label;
-                $forecastSales[] = (float) $item->forecast_sales;
-            }
-        }
-
-        // Gabungkan dan urutkan label actual + forecast secara kronologis
-        $allLabels = $this->mergeAndSortLabels($actualLabels, $forecastLabels, $period);
-
-        // Buat array actualSales dan forecastSales yang sejajar dengan $allLabels
-        $actualSalesComplete = [];
-        $forecastSalesComplete = [];
-
-        foreach ($allLabels as $label) {
-            $actualSalesComplete[] = $groupedData[$label] ?? null;
-
-            if (in_array($label, $forecastLabels)) {
-                $index = array_search($label, $forecastLabels);
-                $forecastSalesComplete[] = $forecastSales[$index];
-            } else {
-                $forecastSalesComplete[] = null;
-            }
-        }
-
-        // Ubah label format Y-m jadi F Y untuk tampil di view
-        $labelsForView = array_map(function($label) use ($period) {
-            if ($period === 'monthly') {
-                return Carbon::createFromFormat('Y-m', $label)->translatedFormat('F Y');
-            }
-            return $label;
-        }, $allLabels);
-
+        // Data tambahan untuk widget
         $totalStores = SalesData::distinct('store')->count('store');
         $totalDepartments = SalesData::distinct('dept')->count('dept');
-        $lastUpdated = SalesData::max('updated_at');
+        $lastDatabaseUpdate = SalesData::where('dept', $selectedDept)
+            ->where('store', $selectedStore)
+            ->max('updated_at'); // Lebih spesifik ke filter yang dipilih
+        if ($lastDatabaseUpdate) {
+            $lastDatabaseUpdate = Carbon::parse($lastDatabaseUpdate)->translatedFormat('d F Y H:i');
+        } else {
+             // Jika tidak ada data sama sekali, $overallLastDateString juga null.
+             // Cek max updated_at dari seluruh tabel sebagai fallback.
+            $lastUpdateOverall = SalesData::max('updated_at');
+            if ($lastUpdateOverall) {
+                 $lastDatabaseUpdate = Carbon::parse($lastUpdateOverall)->translatedFormat('d F Y H:i');
+            }
+        }
 
 
         return view('home', [
             'widget' => [
                 'users' => User::count(),
-                'total_sales' => array_sum($actualSales),
+                // Total sales bisa merupakan gabungan keduanya atau sesuai kebutuhan Anda
+                'total_sales' => $sumOfActualSales + $sumOfPastForecastSales,
             ],
-            'months' => $labelsForView,  // pakai label yang sudah diformat untuk view
-            'actualSales' => $actualSalesComplete,
-            'forecastSales' => $forecastSalesComplete,
+            'months' => $labelsForView, // Ini adalah $allCombinedLabels yang sudah diformat
+            'actualSales' => $alignedActualSales,
+            'forecastSales' => $alignedForecastSales, // Ini sekarang berisi "forecast dari masa lalu"
             'selectedDept' => $selectedDept,
             'selectedStore' => $selectedStore,
             'totalStores' => $totalStores,
             'totalDepartments' => $totalDepartments,
-            'lastUpdated' => $lastUpdated,
+            'lastUpdated' => $lastDatabaseUpdate,
+            'period' => $period,
         ]);
     }
 
     /**
-     * Grouping sales data berdasarkan periode: daily, weekly, monthly
+     * Mengelompokkan data penjualan berdasarkan periode (daily, weekly, monthly).
+     * Input $salesData adalah Collection dari array ['date' => Carbon, 'sales' => float].
      */
-    private function groupSalesData($salesData, $period)
+    private function groupSalesData(Collection $salesData, string $period): array
     {
-        if ($period === 'daily') {
-            return $salesData->groupBy(fn($item) => $item['date']->format('Y-m-d'))
-                ->map(fn($group) => $group->first()['sales'])
-                ->toArray();
+        if ($salesData->isEmpty()) {
+            return [];
         }
 
-        $firstDate = $salesData->first()['date'] ?? now();
-
-        return $salesData->groupBy(function ($item) use ($period, $firstDate) {
-            $date = $item['date'];
+        // Grouping berdasarkan format tanggal periode
+        $grouped = $salesData->groupBy(function ($item) use ($period) {
+            $date = $item['date']; // $date sudah merupakan objek Carbon
             return match ($period) {
-                'weekly' => $date->copy()
-                    ->subDays($date->diffInDays($firstDate) % 7)
-                    ->format('Y-m-d'),
-                'monthly' => $date->format('Y-m'),  // format standar untuk grouping dan sorting
-                default => $date->format('Y-m-d'),
+                'daily' => $date->format('Y-m-d'),
+                'weekly' => $date->copy()->startOfWeek(Carbon::MONDAY)->format('Y-m-d'), // Label = awal minggu
+                'monthly' => $date->format('Y-m'), // Label = YYYY-MM
+                default => $date->format('Y-m-d'), // Fallback
             };
-        })->map(fn($group) => $group->sum('sales'))->toArray();
+        });
+
+        // Jumlahkan sales untuk setiap grup dan urutkan berdasarkan kunci (label periode)
+        return $grouped->map(fn($group) => $group->sum('sales'))
+                       ->sortKeys()
+                       ->toArray();
     }
 
     /**
-     * Menggabungkan dan mengurutkan label actual dan forecast secara kronologis
+     * Menggabungkan label aktual dan forecast, lalu mengurutkannya secara kronologis.
      */
-    private function mergeAndSortLabels(array $actualLabels, array $forecastLabels, string $period)
+    private function mergeAndSortLabels(array $actualLabels, array $forecastLabels, string $period): array
     {
         $mergedLabels = array_unique(array_merge($actualLabels, $forecastLabels));
-
         usort($mergedLabels, function ($a, $b) use ($period) {
-            if ($period === 'monthly') {
-                $dateA = Carbon::createFromFormat('Y-m', $a);
-                $dateB = Carbon::createFromFormat('Y-m', $b);
-            } else {
-                $dateA = Carbon::createFromFormat('Y-m-d', $a);
-                $dateB = Carbon::createFromFormat('Y-m-d', $b);
-            }
-
+            $dateA = $this->parseLabelToDate($a, $period);
+            $dateB = $this->parseLabelToDate($b, $period);
+            if (!$dateA || !$dateB) return 0; // Jika salah satu label tidak valid
             return $dateA->timestamp <=> $dateB->timestamp;
         });
-
         return $mergedLabels;
+    }
+
+    /**
+     * Helper untuk mem-parsing label string (Y-m atau Y-m-d) menjadi objek Carbon.
+     */
+    private function parseLabelToDate(string $label, string $period): ?Carbon
+    {
+        try {
+            if ($period === 'monthly') {
+                return Carbon::createFromFormat('Y-m', $label)->startOfMonth();
+            }
+            // Untuk daily dan weekly, labelnya adalah Y-m-d
+            return Carbon::createFromFormat('Y-m-d', $label)->startOfDay();
+        } catch (\Exception $e) {
+            // Jika format label tidak sesuai, kembalikan null
+            // error_log("Failed to parse label: $label with period: $period - " . $e->getMessage()); // Opsional: logging
+            return null;
+        }
+    }
+
+    /**
+     * Helper untuk memformat label menjadi string yang lebih human-readable untuk view.
+     */
+    private function formatLabelForView(string $label, string $period): string
+    {
+        $date = $this->parseLabelToDate($label, $period);
+        if (!$date) return $label; // Kembalikan label asli jika parsing gagal
+
+        if ($period === 'monthly') {
+            return $date->translatedFormat('F Y'); // e.g., "Januari 2024"
+        }
+        // Untuk daily dan weekly
+        return $date->translatedFormat('d M Y'); // e.g., "23 Mei 2024"
     }
 }

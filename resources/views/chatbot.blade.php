@@ -1,6 +1,7 @@
 @extends('layouts.admin')
 
 @section('main-content')
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <div class="card shadow-lg mb-4">
         <div class="card-header bg-primary text-white py-3">
             <h6 class="m-0 font-weight-bold">Sales Forecasting Chatbot</h6>
@@ -8,18 +9,41 @@
         <div class="card-body">
             <!-- Chatbox -->
             <div id="chatbox"
-                style="height: 400px; overflow-y: auto; margin-bottom: 20px; padding: 20px; background-color: #f4f6f9; border-radius: 12px; box-shadow: inset 0 0 5px rgba(0,0,0,0.1);">
+                style="height: 500px; overflow-y: auto; margin-bottom: 20px; padding: 20px; background-color: #f4f6f9; border-radius: 12px; box-shadow: inset 0 0 5px rgba(0,0,0,0.1);">
             </div>
 
             <!-- Input -->
-            <div class="input-group">
-                <input type="text" id="userInput" class="form-control shadow-sm" placeholder="Tunggu sebentar..." autofocus>
-                <div class="input-group-append">
-                    <button id="sendButton" class="btn btn-primary">Kirim</button>
-                </div>
+            <div style="position: relative; display: flex; align-items: flex-end;">
+                <textarea id="userInput" class="form-control shadow-sm" placeholder="Ketik pesan..." rows="1"
+                    style="resize: none; border-radius: 20px; padding: 10px 50px 10px 15px; overflow-y: auto; min-height: 50px; line-height: 1.5; white-space: pre-wrap;"></textarea>
+
+                <button id="sendButton" class="btn btn-primary"
+                    style="position: absolute; right: 8px; bottom: 8px; border-radius: 50%; width: 36px; height: 36px; margin-right: 10px; padding: 0; display: flex; align-items: center; justify-content: center; border: none; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <i class="fas fa-arrow-up" style="font-size: 16px;"></i>
+                    <span id="loadingSpinner" class="spinner-border spinner-border-sm d-none" style="position: absolute;"
+                        role="status"></span>
+                </button>
             </div>
         </div>
     </div>
+
+    <style>
+        #userInput {
+            scrollbar-width: thin;
+            scrollbar-color: #888 transparent;
+            transition: height 0.2s;
+        }
+
+        #userInput::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        #userInput::-webkit-scrollbar-thumb {
+            background-color: #888;
+            border-radius: 3px;
+        }
+    </style>
+
     @push('scripts')
         <script>
             const chatbox = document.getElementById('chatbox');
@@ -41,6 +65,7 @@
             chatbox.appendChild(typingDiv);
 
             let i = 0;
+
             function typeMessage() {
                 if (i < message.length) {
                     typingDiv.textContent += message.charAt(i);
@@ -89,26 +114,57 @@
                 chatbox.scrollTop = chatbox.scrollHeight;
             }
 
-            sendButton.addEventListener('click', () => {
+            function autoResize(textarea) {
+                textarea.style.height = 'auto';
+                textarea.style.height = Math.min(textarea.scrollHeight, 200) + 'px';
+            }
+
+            // Handle textarea input and key events
+            userInput.addEventListener('input', function() {
+                autoResize(this);
+            });
+
+            userInput.addEventListener('keydown', function(event) {
+                // Shift+Enter for new line
+                if (event.key === 'Enter' && event.shiftKey) {
+                    // Allow default behavior (new line)
+                    return;
+                }
+                // Enter alone to send message
+                else if (event.key === 'Enter') {
+                    event.preventDefault();
+                    sendMessage();
+                }
+            });
+
+            sendButton.addEventListener('click', sendMessage);
+
+            function sendMessage() {
                 const message = userInput.value.trim();
                 if (message) {
                     addMessage(message, 'user');
                     userInput.value = '';
+                    autoResize(userInput);
+
                     const loadingId = 'loading-' + Date.now();
                     addMessage('_Sedang mengetik..._', 'bot', loadingId);
+
                     fetch('/chatbot/response', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute(
+                                    'content')
                             },
-                            body: JSON.stringify({ message })
+                            body: JSON.stringify({
+                                message: message
+                            })
                         })
                         .then(res => res.json())
                         .then(data => {
                             const loadingElem = document.getElementById(loadingId);
                             if (loadingElem) loadingElem.parentNode.remove();
-                            addMessage(data.reply, 'bot');
+                            addMessage(data.response, 'bot');
                         })
                         .catch(err => {
                             console.error('Error:', err);
@@ -117,11 +173,7 @@
                             addMessage("Maaf, terjadi kesalahan. Coba lagi ya.", 'bot');
                         });
                 }
-            });
-
-            userInput.addEventListener('keydown', e => {
-                if (e.key === 'Enter') sendButton.click();
-            });
+            }
         </script>
     @endpush
 @endsection

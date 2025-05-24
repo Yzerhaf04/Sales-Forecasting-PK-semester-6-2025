@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-"content-hash": "f95b715d2589aecc228aaf558ffe591c",
+    "content-hash": "f95b715d2589aecc228aaf558ffe591c",
     "packages": [
         {
             "name": "brick/math",
@@ -5329,7 +5329,7 @@
             ],
             "support": {
                 "source": "https://github.com/symfony/polyfill-php80/tree/v1.32.0"
-      },
+            },
             "funding": [
                 {
                     "url": "https://symfony.com/sponsor",
@@ -6211,7 +6211,6 @@
                     "type": "tidelift"
                 }
             ],
-
             "time": "2025-04-09T08:14:01+00:00"
         },
         {
