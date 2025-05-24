@@ -75,14 +75,6 @@
                 </a>
             </li>
 
-            <!-- Nav Item - Sentimen Analisis -->
-            <li class="nav-item {{ Nav::isRoute('sentimen') }}">
-                <a class="nav-link" href="{{ route('sentimen') }}">
-                    <i class="fas fa-fw fa-chart-pie"></i>
-                    <span>{{ __('Sentimen Analisis') }}</span>
-                </a>
-            </li>
-
             <!-- Nav Item - About -->
             <li class="nav-item {{ Nav::isRoute('about') }}">
                 <a class="nav-link" href="{{ route('about') }}">
@@ -478,11 +470,8 @@
                 });
             });
         </script>
-
         @stack('scripts')
     @endsection
-
-
 
     @yield('scripts')
 
