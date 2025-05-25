@@ -12,7 +12,7 @@ class ChatbotController extends Controller
 {
     public function index()
     {
-        return view('chatbot'); // View chatbot kamu
+        return view('chatbot');
     }
 
     public function response(Request $request)
@@ -50,7 +50,7 @@ class ChatbotController extends Controller
             if ($dateFrom && $dateTo) {
                 $totalSales = SalesData::where('store', $store)
                     ->whereBetween('date', [$dateFrom->toDateString(), $dateTo->toDateString()])
-                    ->sum('weekly_sales');
+                    ->sum('daily_sales');
 
                 if ($totalSales > 0) {
                     $salesMessage = "Penjualan store $store untuk periode $periodType ke-$periodNumber (" .

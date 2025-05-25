@@ -9,13 +9,13 @@ class SalesController extends Controller
 {
     public function index()
     {
-        $sales = SalesData::select('date', 'store', 'dept', 'weekly_sales')->get();
+        $sales = SalesData::select('date', 'store', 'dept', 'daily_sales')->get();
         return response()->json($sales);
     }
 
     public function filter(Request $request)
     {
-        $query = SalesData::select('date', 'store', 'dept', 'weekly_sales');
+        $query = SalesData::select('date', 'store', 'dept', 'daily_sales');
 
         if ($request->has('date')) {
             $query->where('date', $request->date);

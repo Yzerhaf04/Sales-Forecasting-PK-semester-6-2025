@@ -2,64 +2,54 @@
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 
 <head>
-    <!-- Required meta tags -->
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <meta name="description" content="Laravel SB Admin 2">
     <meta name="author" content="Alejandro RH">
 
-    <!-- CSRF Token -->
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <title>{{ config('app.name', 'Laravel') }}</title>
 
-    <!-- Fonts -->
     <link href="{{ asset('vendor/fontawesome-free/css/all.min.css') }}" rel="stylesheet">
     <link
         href="https://fonts.googleapis.com/css?family=Nunito:200,200i,300,300i,400,400i,600,600i,700,700i,800,800i,900,900i"
         rel="stylesheet">
 
-    <!-- Styles -->
     <link href="{{ asset('css/sb-admin-2.min.css') }}" rel="stylesheet">
 
-    <!-- Favicon -->
     <link href="{{ asset('img/favicon.png') }}" rel="icon" type="image/png">
+
+    @stack('styles') {{-- Tambahkan stack untuk CSS spesifik per halaman jika perlu --}}
 </head>
 
 <body id="page-top">
 
-    <!-- Page Wrapper -->
     <div id="wrapper">
-        <!-- Sidebar -->
         <ul class="navbar-nav bg-gradient-primary sidebar sidebar-dark accordion" id="accordionSidebar">
 
-            <!-- Sidebar - Brand -->
             <a class="sidebar-brand d-flex align-items-center justify-content-center" href="{{ url('/home') }}">
                 <div class="sidebar-brand-icon">
-                    <i class="fas fa-chart-simple"></i>
+                    {{-- Mengganti ikon agar lebih sesuai dengan tema forecasting --}}
+                    <i class="fas fa-chart-line"></i>
                 </div>
                 <div class="sidebar-brand-text mx-3">Sales Forecasting</div>
             </a>
 
-            <!-- Divider -->
             <hr class="sidebar-divider my-0">
 
-            <!-- Nav Item - Dashboard -->
             <li class="nav-item {{ Nav::isRoute('home') }}">
                 <a class="nav-link" href="{{ route('home') }}">
                     <i class="fas fa-fw fa-tachometer-alt"></i>
                     <span>{{ __('Dashboard') }}</span></a>
             </li>
 
-            <!-- Divider -->
             <hr class="sidebar-divider">
 
-            <!-- Heading -->
             <div class="sidebar-heading">
                 {{ __('Settings') }}
             </div>
 
-            <!-- Nav Item - Profile -->
             <li class="nav-item {{ Nav::isRoute('profile') }}">
                 <a class="nav-link" href="{{ route('profile') }}">
                     <i class="fas fa-fw fa-user"></i>
@@ -67,7 +57,6 @@
                 </a>
             </li>
 
-            <!-- Nav Item - Chatbot -->
             <li class="nav-item {{ Nav::isRoute('chatbot') }}">
                 <a class="nav-link" href="{{ route('chatbot') }}">
                     <i class="fas fa-fw fa-comment-dots"></i>
@@ -75,63 +64,40 @@
                 </a>
             </li>
 
-            <!-- Nav Item - About -->
             <li class="nav-item {{ Nav::isRoute('about') }}">
                 <a class="nav-link" href="{{ route('about') }}">
-                    <i class="fas fa-fw fa-solid fa-exclamation"></i>
+                    {{-- Mengganti ikon 'exclamation' menjadi 'info-circle' untuk 'About' --}}
+                    <i class="fas fa-fw fa-info-circle"></i>
                     <span>{{ __('About') }}</span>
                 </a>
             </li>
 
-            <!-- Divider -->
             <hr class="sidebar-divider d-none d-md-block">
 
-            <!-- Sidebar Toggler (Sidebar) -->
             <div class="text-center d-none d-md-inline">
                 <button class="rounded-circle border-0" id="sidebarToggle"></button>
             </div>
 
         </ul>
-        <!-- End of Sidebar -->
-
-        <!-- Content Wrapper -->
         <div id="content-wrapper" class="d-flex flex-column">
 
-            <!-- Main Content -->
             <div id="content">
 
-                <!-- Topbar -->
                 <nav class="navbar navbar-expand navbar-light bg-white topbar mb-4 static-top shadow">
 
-                    <!-- Sidebar Toggle (Topbar) -->
                     <button id="sidebarToggleTop" class="btn btn-link d-md-none rounded-circle mr-3">
                         <i class="fa fa-bars"></i>
                     </button>
 
-                    {{-- <!-- Topbar Search -->
-                    <form
-                        class="d-none d-sm-inline-block form-inline mr-auto ml-md-3 my-2 my-md-0 mw-100 navbar-search">
-                        <div class="input-group">
-                            <input type="text" class="form-control bg-light border-0 small"
-                                placeholder="Search for..." aria-label="Search" aria-describedby="basic-addon2">
-                            <div class="input-group-append">
-                                <button class="btn btn-primary" type="button">
-                                    <i class="fas fa-search fa-sm"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </form> --}}
+                    {{-- --}}
 
-                    <!-- Topbar Navbar -->
                     <ul class="navbar-nav ml-auto">
 
-                        <!-- Nav Item - Search Dropdown (Visible Only XS) -->
                         <li class="nav-item dropdown no-arrow d-sm-none">
                             <a class="nav-link dropdown-toggle" href="#" id="searchDropdown" role="button"
                                 data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                                 <i class="fas fa-search fa-fw"></i>
                             </a>
-                            <!-- Dropdown - Messages -->
                             <div class="dropdown-menu dropdown-menu-right p-3 shadow animated--grow-in"
                                 aria-labelledby="searchDropdown">
                                 <form class="form-inline mr-auto w-100 navbar-search">
@@ -149,138 +115,17 @@
                             </div>
                         </li>
 
-                        {{-- <!-- Nav Item - Alerts -->
-                        <li class="nav-item dropdown no-arrow mx-1">
-                            <a class="nav-link dropdown-toggle" href="#" id="alertsDropdown" role="button"
-                                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                <i class="fas fa-bell fa-fw"></i>
-                                <!-- Counter - Alerts -->
-                                <span class="badge badge-danger badge-counter">3+</span>
-                            </a>
-                            <!-- Dropdown - Alerts -->
-                            <div class="dropdown-list dropdown-menu dropdown-menu-right shadow animated--grow-in"
-                                aria-labelledby="alertsDropdown">
-                                <h6 class="dropdown-header">
-                                    Alerts Center
-                                </h6>
-                                <a class="dropdown-item d-flex align-items-center" href="#">
-                                    <div class="mr-3">
-                                        <div class="icon-circle bg-primary">
-                                            <i class="fas fa-file-alt text-white"></i>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <div class="small text-gray-500">December 12, 2019</div>
-                                        <span class="font-weight-bold">A new monthly report is ready to
-                                            download!</span>
-                                    </div>
-                                </a>
-                                <a class="dropdown-item d-flex align-items-center" href="#">
-                                    <div class="mr-3">
-                                        <div class="icon-circle bg-success">
-                                            <i class="fas fa-donate text-white"></i>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <div class="small text-gray-500">December 7, 2019</div>
-                                        $290.29 has been deposited into your account!
-                                    </div>
-                                </a>
-                                <a class="dropdown-item d-flex align-items-center" href="#">
-                                    <div class="mr-3">
-                                        <div class="icon-circle bg-warning">
-                                            <i class="fas fa-exclamation-triangle text-white"></i>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <div class="small text-gray-500">December 2, 2019</div>
-                                        Spending Alert: We've noticed unusually high spending for your account.
-                                    </div>
-                                </a>
-                                <a class="dropdown-item text-center small text-gray-500" href="#">Show All
-                                    Alerts</a>
-                            </div>
-                        </li> --}}
+                        {{-- --}}
 
-                        {{-- <!-- Nav Item - Messages -->
-                        <li class="nav-item dropdown no-arrow mx-1">
-                            <a class="nav-link dropdown-toggle" href="#" id="messagesDropdown" role="button"
-                                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                <i class="fas fa-envelope fa-fw"></i>
-                                <!-- Counter - Messages -->
-                                <span class="badge badge-danger badge-counter">7</span>
-                            </a>
-                            <!-- Dropdown - Messages -->
-                            <div class="dropdown-list dropdown-menu dropdown-menu-right shadow animated--grow-in"
-                                aria-labelledby="messagesDropdown">
-                                <h6 class="dropdown-header">
-                                    Message Center
-                                </h6>
-                                <a class="dropdown-item d-flex align-items-center" href="#">
-                                    <div class="dropdown-list-image mr-3">
-                                        <img class="rounded-circle"
-                                            src="https://source.unsplash.com/fn_BT9fwg_E/60x60" alt="">
-                                        <div class="status-indicator bg-success"></div>
-                                    </div>
-                                    <div class="font-weight-bold">
-                                        <div class="text-truncate">Hi there! I am wondering if you can help me with a
-                                            problem I've been having.</div>
-                                        <div class="small text-gray-500">Emily Fowler · 58m</div>
-                                    </div>
-                                </a>
-                                <a class="dropdown-item d-flex align-items-center" href="#">
-                                    <div class="dropdown-list-image mr-3">
-                                        <img class="rounded-circle"
-                                            src="https://source.unsplash.com/AU4VPcFN4LE/60x60" alt="">
-                                        <div class="status-indicator"></div>
-                                    </div>
-                                    <div>
-                                        <div class="text-truncate">I have the photos that you ordered last month, how
-                                            would you like them sent to you?</div>
-                                        <div class="small text-gray-500">Jae Chun · 1d</div>
-                                    </div>
-                                </a>
-                                <a class="dropdown-item d-flex align-items-center" href="#">
-                                    <div class="dropdown-list-image mr-3">
-                                        <img class="rounded-circle"
-                                            src="https://source.unsplash.com/CS2uCrpNzJY/60x60" alt="">
-                                        <div class="status-indicator bg-warning"></div>
-                                    </div>
-                                    <div>
-                                        <div class="text-truncate">Last month's report looks great, I am very happy
-                                            with the progress so far, keep up the good work!</div>
-                                        <div class="small text-gray-500">Morgan Alvarez · 2d</div>
-                                    </div>
-                                </a>
-                                <a class="dropdown-item d-flex align-items-center" href="#">
-                                    <div class="dropdown-list-image mr-3">
-                                        <img class="rounded-circle"
-                                            src="https://source.unsplash.com/Mv9hjnEUHR4/60x60" alt="">
-                                        <div class="status-indicator bg-success"></div>
-                                    </div>
-                                    <div>
-                                        <div class="text-truncate">Am I a good boy? The reason I ask is because someone
-                                            told me that people say this to all dogs, even if they aren't good...</div>
-                                        <div class="small text-gray-500">Chicken the Dog · 2w</div>
-                                    </div>
-                                </a>
-                                <a class="dropdown-item text-center small text-gray-500" href="#">Read More
-                                    Messages</a>
-                            </div>
-                        </li> --}}
-
-                        {{-- <div class="topbar-divider d-none d-sm-block"></div> --}}
-
-                        <!-- Nav Item - User Information -->
                         <li class="nav-item dropdown no-arrow">
                             <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button"
                                 data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                                 <span
                                     class="mr-2 d-none d-lg-inline text-gray-600 small">{{ Auth::user()->name }}</span>
                                 <figure class="img-profile rounded-circle avatar font-weight-bold"
-                                    data-initial="{{ Auth::user()->name[0] }}"></figure>
+                                    data-initial="{{ strtoupper(substr(Auth::user()->name, 0, 1)) }}"></figure>
+                                {{-- Pastikan inisial huruf besar --}}
                             </a>
-                            <!-- Dropdown - User Information -->
                             <div class="dropdown-menu dropdown-menu-right shadow animated--grow-in"
                                 aria-labelledby="userDropdown">
                                 <a class="dropdown-item" href="{{ route('profile') }}">
@@ -303,45 +148,26 @@
                                 </a>
                             </div>
                         </li>
-
                     </ul>
-
                 </nav>
-                <!-- End of Topbar -->
-
-                <!-- Begin Page Content -->
                 <div class="container-fluid">
-
                     @yield('main-content')
-
                 </div>
-                <!-- /.container-fluid -->
-
             </div>
-            <!-- End of Main Content -->
-
-            <!-- Footer -->
-            <footer class="sticky-footer bg-white">
+            <footer class="sticky-footer">
                 <div class="container my-auto">
                     <div class="copyright text-center my-auto">
-                        <span>Maintained by Kelompok Forecast</a>.
-                            {{ now()->year }}</span>
+                        <span>Maintained by Kelompok Forecast.
+                            &copy; {{ now()->year }}</span> {{-- Tambahkan simbol copyright --}}
                     </div>
                 </div>
             </footer>
-            <!-- End of Footer -->
-
         </div>
-        <!-- End of Content Wrapper -->
-
     </div>
-
-    <!-- Scroll to Top Button-->
     <a class="scroll-to-top rounded" href="#page-top">
         <i class="fas fa-angle-up"></i>
     </a>
 
-    <!-- Logout Modal-->
     <div class="modal fade" id="logoutModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel"
         aria-hidden="true">
         <div class="modal-dialog" role="document">
@@ -365,122 +191,17 @@
         </div>
     </div>
 
-    @section('scripts')
-        <script>
-            document.addEventListener('DOMContentLoaded', function() {
-                const ctx = document.getElementById('forecastChart').getContext('2d');
-
-                new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov',
-                            'Dec'
-                        ],
-                        datasets: [{
-                                label: 'Actual Sales',
-                                data: [65, 59, 80, 81, 56, 55, 40, 30, 45, 60, 70, 85],
-                                backgroundColor: 'rgba(78, 115, 223, 0.05)',
-                                borderColor: 'rgba(78, 115, 223, 1)',
-                                borderWidth: 2,
-                                pointBackgroundColor: 'rgba(78, 115, 223, 1)',
-                                pointBorderColor: '#fff',
-                                pointRadius: 3,
-                                fill: true,
-                                tension: 0.3,
-                            },
-                            {
-                                label: 'Forecast',
-                                data: [65, 59, 80, 81, 56, 55, 40, 30, 45, 60, 75, 90],
-                                backgroundColor: 'rgba(28, 200, 138, 0.05)',
-                                borderColor: 'rgba(28, 200, 138, 1)',
-                                borderWidth: 2,
-                                pointBackgroundColor: 'rgba(28, 200, 138, 1)',
-                                pointBorderColor: '#fff',
-                                pointRadius: 3,
-                                borderDash: [5, 5],
-                                fill: false,
-                                tension: 0.3,
-                            }
-                        ]
-                    },
-                    options: {
-                        maintainAspectRatio: false,
-                        responsive: true,
-                        layout: {
-                            padding: {
-                                left: 10,
-                                right: 25,
-                                top: 25,
-                                bottom: 0
-                            }
-                        },
-                        scales: {
-                            x: {
-                                ticks: {
-                                    maxTicksLimit: 12,
-                                },
-                                grid: {
-                                    display: false,
-                                    drawBorder: false,
-                                }
-                            },
-                            y: {
-                                ticks: {
-                                    maxTicksLimit: 5,
-                                    padding: 10,
-                                    callback: function(value) {
-                                        return '$' + value;
-                                    }
-                                },
-                                grid: {
-                                    color: "rgb(234, 236, 244)",
-                                    zeroLineColor: "rgb(234, 236, 244)",
-                                    drawBorder: false,
-                                    borderDash: [2],
-                                    zeroLineBorderDash: [2]
-                                }
-                            }
-                        },
-                        plugins: {
-                            legend: {
-                                display: true,
-                                position: 'top'
-                            },
-                            tooltip: {
-                                backgroundColor: "rgb(255,255,255)",
-                                bodyColor: "#858796",
-                                titleColor: '#6e707e',
-                                titleFont: {
-                                    size: 14
-                                },
-                                borderColor: '#dddfeb',
-                                borderWidth: 1,
-                                padding: 15,
-                                displayColors: false,
-                                intersect: false,
-                                mode: 'index',
-                                callbacks: {
-                                    label: function(context) {
-                                        return context.dataset.label + ': $' + context.parsed.y;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                });
-            });
-        </script>
-        @stack('scripts')
-    @endsection
-
-    @yield('scripts')
-
-    <!-- Scripts -->
     <script src="{{ asset('vendor/jquery/jquery.min.js') }}"></script>
     <script src="{{ asset('vendor/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
     <script src="{{ asset('vendor/jquery-easing/jquery.easing.min.js') }}"></script>
     <script src="{{ asset('js/sb-admin-2.min.js') }}"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.4/dist/Chart.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+
+    @stack('scripts') {{-- Ini akan merender semua script yang di-push dari child views --}}
+
+
 </body>
 
 </html>
