@@ -8,7 +8,7 @@ class SentimenData extends Model
 {
     protected $table = 'sentimen_data';
 
-    public $timestamps = false;
+    public $timestamps = true;
 
     protected $fillable = [
         'review_text',

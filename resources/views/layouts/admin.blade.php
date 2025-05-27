@@ -64,6 +64,13 @@
                 </a>
             </li>
 
+            <li class="nav-item {{ Nav::isRoute('sentimen') }}">
+                <a class="nav-link" href="{{ route('sentimen') }}">
+                    <i class="fas fa-fw fa-face-smile"></i>
+                    <span>{{ __('Sentimen') }}</span>
+                </a>
+            </li>
+
             <li class="nav-item {{ Nav::isRoute('about') }}">
                 <a class="nav-link" href="{{ route('about') }}">
                     {{-- Mengganti ikon 'exclamation' menjadi 'info-circle' untuk 'About' --}}
