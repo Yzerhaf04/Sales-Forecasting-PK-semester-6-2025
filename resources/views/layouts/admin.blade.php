@@ -20,7 +20,7 @@
 
     <link href="{{ asset('img/favicon.png') }}" rel="icon" type="image/png">
 
-    @stack('styles') {{-- Tambahkan stack untuk CSS spesifik per halaman jika perlu --}}
+    @stack('styles')
 </head>
 
 <body id="page-top">
@@ -30,7 +30,6 @@
 
             <a class="sidebar-brand d-flex align-items-center justify-content-center" href="{{ url('/home') }}">
                 <div class="sidebar-brand-icon">
-                    {{-- Mengganti ikon agar lebih sesuai dengan tema forecasting --}}
                     <i class="fas fa-chart-line"></i>
                 </div>
                 <div class="sidebar-brand-text mx-3">Sales Forecasting</div>
@@ -71,14 +70,6 @@
                 </a>
             </li>
 
-            <li class="nav-item {{ Nav::isRoute('about') }}">
-                <a class="nav-link" href="{{ route('about') }}">
-                    {{-- Mengganti ikon 'exclamation' menjadi 'info-circle' untuk 'About' --}}
-                    <i class="fas fa-fw fa-info-circle"></i>
-                    <span>{{ __('About') }}</span>
-                </a>
-            </li>
-
             <hr class="sidebar-divider d-none d-md-block">
 
             <div class="text-center d-none d-md-inline">
@@ -95,8 +86,6 @@
                     <button id="sidebarToggleTop" class="btn btn-link d-md-none rounded-circle mr-3">
                         <i class="fa fa-bars"></i>
                     </button>
-
-                    {{-- --}}
 
                     <ul class="navbar-nav ml-auto">
 
@@ -122,8 +111,6 @@
                             </div>
                         </li>
 
-                        {{-- --}}
-
                         <li class="nav-item dropdown no-arrow">
                             <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button"
                                 data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -131,7 +118,6 @@
                                     class="mr-2 d-none d-lg-inline text-gray-600 small">{{ Auth::user()->name }}</span>
                                 <figure class="img-profile rounded-circle avatar font-weight-bold"
                                     data-initial="{{ strtoupper(substr(Auth::user()->name, 0, 1)) }}"></figure>
-                                {{-- Pastikan inisial huruf besar --}}
                             </a>
                             <div class="dropdown-menu dropdown-menu-right shadow animated--grow-in"
                                 aria-labelledby="userDropdown">
@@ -139,16 +125,12 @@
                                     <i class="fas fa-user fa-sm fa-fw mr-2 text-gray-400"></i>
                                     {{ __('Profile') }}
                                 </a>
-                                <a class="dropdown-item" href="javascript:void(0)">
-                                    <i class="fas fa-cogs fa-sm fa-fw mr-2 text-gray-400"></i>
-                                    {{ __('Settings') }}
-                                </a>
-                                <a class="dropdown-item" href="javascript:void(0)">
-                                    <i class="fas fa-list fa-sm fa-fw mr-2 text-gray-400"></i>
-                                    {{ __('Activity Log') }}
+                                <a class="dropdown-item" href="{{ route('welcome') }}">
+                                    <i class="fas fa-home fa-sm fa-fw mr-2 text-gray-400"></i>
+                                    {{ __('Home') }}
                                 </a>
                                 <div class="dropdown-divider"></div>
-                                <a class="dropdown-item" href="#" data-toggle="modal"
+                                <a class="dropdown-item" href="{{ route('welcome') }}" data-toggle="modal"
                                     data-target="#logoutModal">
                                     <i class="fas fa-sign-out-alt fa-sm fa-fw mr-2 text-gray-400"></i>
                                     {{ __('Logout') }}
@@ -165,7 +147,7 @@
                 <div class="container my-auto">
                     <div class="copyright text-center my-auto">
                         <span>Maintained by Kelompok Forecast.
-                            &copy; {{ now()->year }}</span> {{-- Tambahkan simbol copyright --}}
+                            &copy; {{ now()->year }}</span>
                     </div>
                 </div>
             </footer>
@@ -206,7 +188,7 @@
     <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
 
-    @stack('scripts') {{-- Ini akan merender semua script yang di-push dari child views --}}
+    @stack('scripts')
 
 
 </body>

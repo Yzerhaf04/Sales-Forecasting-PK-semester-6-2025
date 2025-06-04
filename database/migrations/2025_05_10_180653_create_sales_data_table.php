@@ -12,10 +12,10 @@ return new class extends Migration
         if (!Schema::hasTable('sales_data')) {
             Schema::create('sales_data', function (Blueprint $table) {
                 $table->id();
-                $table->date('Date');
-                $table->integer('Store');
-                $table->integer('Dept');
-                $table->decimal('Daily_Sales', 10, 2);
+                $table->date('date');
+                $table->integer('store');
+                $table->integer('dept');
+                $table->decimal('daily_sales', 10, 2);
                 $table->timestamp('updated_at')->nullable();
             });
         }

@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ChatbotController;
+use App\Http\Controllers\NewsController;
 use App\Http\Controllers\SentimenController;
 use App\Http\Controllers\WelcomeController;
 
@@ -27,6 +28,5 @@ Route::get('/sentimen-analisis', [SentimenController::class, 'index'])->name('se
 Route::post('/sentimen-analisis/predict', [SentimenController::class, 'predict'])->name('sentimen.predict');
 Route::post('/sentimen-analisis/save', [SentimenController::class, 'save'])->name('sentimen.save');
 
-Route::get('/about', function () {
-    return view('about');
-})->name('about');
+Route::get('/news', [NewsController::class, 'index'])->name('news');
+Route::get('/news/{article_id}', [NewsController::class, 'show'])->name('news_show');

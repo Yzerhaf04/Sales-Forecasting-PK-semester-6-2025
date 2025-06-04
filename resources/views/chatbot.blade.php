@@ -12,7 +12,6 @@
             {{-- Chatbox --}}
             <div id="chatbox"
                 style="height: 500px; overflow-y: auto; margin-bottom: 20px; padding: 20px; background-color: #f4f6f9; border-radius: 12px; box-shadow: inset 0 0 5px rgba(0,0,0,0.1);">
-                {{-- Messages will be appended here --}}
             </div>
 
             {{-- Input Area --}}
@@ -111,24 +110,20 @@
                 const messageDiv = document.createElement('div');
                 messageDiv.classList.add('p-2', 'rounded', 'shadow-sm');
                 messageDiv.style.maxWidth = '75%';
-                messageDiv.style.wordBreak = 'break-word'; // Ensure long words break
+                messageDiv.style.wordBreak = 'break-word';
 
                 if (sender === 'bot') {
                     messageDiv.classList.add('bg-light', 'text-dark');
-                    messageDiv.innerHTML = text; // Allows HTML from server (e.g., tables, formatted text)
-                } else { // User
+                    messageDiv.innerHTML = text;
+                } else {
                     messageDiv.classList.add('bg-primary', 'text-white');
-                    // For user messages, text is from userInput.value (plain text).
-                    // Replace newlines with <br> for display.
-                    // Escape HTML to prevent XSS from user input if not already handled.
-                    // However, for user messages, we typically display what they typed.
                     const escapedText = text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
                     messageDiv.innerHTML = escapedText.replace(/\n/g, '<br>');
                 }
 
                 messageWrapper.appendChild(messageDiv);
                 chatbox.appendChild(messageWrapper);
-                chatbox.scrollTop = chatbox.scrollHeight; // Auto-scroll to bottom
+                chatbox.scrollTop = chatbox.scrollHeight;
             }
 
             /**
@@ -155,7 +150,7 @@
                         messageBubble.textContent += message.charAt(i);
                         i++;
                         chatbox.scrollTop = chatbox.scrollHeight;
-                        setTimeout(type, 30); // Adjust typing speed (milliseconds)
+                        setTimeout(type, 30);
                     } else {
                         if (callback) callback();
                     }
@@ -168,8 +163,7 @@
              * @param {HTMLTextAreaElement} textarea - The textarea element.
              */
             function autoResize(textarea) {
-                textarea.style.height = 'auto'; // Reset height
-                // Set height based on scroll height, up to a max of 200px
+                textarea.style.height = 'auto';
                 textarea.style.height = Math.min(textarea.scrollHeight, 200) + 'px';
             }
 
@@ -178,13 +172,10 @@
              */
             async function sendMessage() {
                 const messageText = userInput.value.trim();
-                if (!messageText) return; // Do nothing if message is empty
-
-                addMessage(messageText, 'user'); // User message is plain text
-                userInput.value = ''; // Clear input field
-                autoResize(userInput); // Resize textarea after clearing
-
-                // UI updates for loading state
+                if (!messageText) return;
+                addMessage(messageText, 'user');
+                userInput.value = '';
+                autoResize(userInput);
                 sendIcon.classList.add('d-none');
                 loadingSpinner.classList.remove('d-none');
                 sendButton.disabled = true;
@@ -192,39 +183,37 @@
 
                 const loadingMessageId = 'loading-' + Date.now();
                 addMessage('<em>Sedang memproses...</em>', 'bot',
-                loadingMessageId); // Changed typing to processing
+                loadingMessageId);
 
                 try {
                     const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
                     const response = await fetch(
-                        "{{ route('chatbot.response') }}", { // Using Laravel route helper
+                        "{{ route('chatbot.response') }}", {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
                                 'X-CSRF-TOKEN': csrfToken,
-                                'Accept': 'application/json' // Good practice to specify accept header
+                                'Accept': 'application/json'
                             },
                             body: JSON.stringify({
                                 message: messageText
                             })
                         });
 
-                    // Remove processing indicator regardless of response status
                     const loadingElem = document.getElementById(loadingMessageId);
                     if (loadingElem) loadingElem.remove();
 
                     if (!response.ok) {
-                        // Handle HTTP errors (e.g., 4xx, 5xx)
                         let errorText = `Maaf, terjadi kesalahan server (${response.status}). Coba lagi nanti.`;
                         try {
-                            const errorData = await response.json(); // Try to parse error as JSON
-                            if (errorData && errorData.response) { // Check if our custom error format
+                            const errorData = await response.json();
+                            if (errorData && errorData.response) {
                                 errorText = errorData.response;
-                            } else if (errorData && errorData.message) { // Standard Laravel JSON error
+                            } else if (errorData && errorData.message) {
                                 errorText = `Error ${response.status}: ${errorData.message}`;
                             }
                         } catch (e) {
-                            // If error response is not JSON, use the generic message
+
                             console.warn('Could not parse error response as JSON.', e);
                         }
                         console.error('Server error:', response.status, errorText);
@@ -234,8 +223,7 @@
 
                     const data = await response.json();
 
-                    // ***** THIS IS THE KEY CHANGE *****
-                    if (data && data.response) { // Expect "response" key from backend
+                    if (data && data.response) {
                         addMessage(data.response, 'bot');
                     } else {
                         console.error('Invalid response format from server:', data);
@@ -244,17 +232,15 @@
 
                 } catch (error) {
                     console.error('Fetch Error:', error);
-                    // Ensure processing indicator is removed on network error too
                     const loadingElem = document.getElementById(loadingMessageId);
                     if (loadingElem) loadingElem.remove();
                     addMessage("Maaf, terjadi kesalahan jaringan. Periksa koneksi Anda dan coba lagi.", 'bot');
                 } finally {
-                    // Restore UI after request completion (success or failure)
                     sendIcon.classList.remove('d-none');
                     loadingSpinner.classList.add('d-none');
                     sendButton.disabled = false;
                     userInput.disabled = false;
-                    userInput.focus(); // Re-focus the input field
+                    userInput.focus();
                 }
             }
 
@@ -274,32 +260,30 @@
                 // Handle Enter key for sending message and Shift+Enter for new line
                 userInput.addEventListener('keydown', function(event) {
                     if (event.key === 'Enter' && event.shiftKey) {
-                        // Allow default behavior (new line)
                         return;
                     }
                     if (event.key === 'Enter') {
-                        event.preventDefault(); // Prevent new line in textarea
+                        event.preventDefault();
                         sendMessage();
                     }
                 });
             }
 
 
-            // --- Initialization ---
             if (userInput && sendButton && chatbox && sendIcon && loadingSpinner) {
-                // Disable input initially until welcome message is done
+
                 userInput.disabled = true;
                 sendButton.disabled = true;
-                autoResize(userInput); // Initial resize for placeholder
+                autoResize(userInput);
 
                 const welcomeMessage =
-                    "Halo! Aku adalah chatbot untuk analisis penjualan. Ada yang bisa aku bantu hari ini?";
+                    "Halo! Aku adalah chatbot Sales Forecasting. Ada yang bisa aku bantu hari ini?";
                 typeWelcomeMessage(welcomeMessage, () => {
                     userInput.placeholder = "Ketik pesan...";
                     userInput.disabled = false;
                     sendButton.disabled = false;
                     userInput.focus();
-                    autoResize(userInput); // Adjust size for new placeholder if needed
+                    autoResize(userInput);
                 });
             } else {
                 console.error("Satu atau lebih elemen DOM chatbot tidak ditemukan. Periksa ID elemen Anda.");
