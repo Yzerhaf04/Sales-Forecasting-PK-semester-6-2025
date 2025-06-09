@@ -47,18 +47,18 @@
             }
 
             .app-logo {
-                display: flex; /* Untuk alignment gambar dan teks */
-                align-items: center; /* Vertikal tengah */
-                text-decoration: none; /* Menghilangkan garis bawah */
+                display: flex;
+                align-items: center;
+                text-decoration: none;
             }
 
             .app-logo img {
-                height: 28px; /* Sesuaikan tinggi logo jika perlu */
-                margin-right: 8px; /* Jarak antara gambar logo dan teks */
+                height: 28px;
+                margin-right: 8px;
             }
 
             .app-logo-text {
-                font-size: 1rem; /* Ukuran font untuk teks logo, bisa disesuaikan */
+                font-size: 1rem;
                 font-weight: 600;
                 color: #0043da;
             }
@@ -84,7 +84,7 @@
             }
 
             .header-nav .nav-links-container a:hover {
-                color: #0043da; /* Efek hover hanya untuk link navigasi biasa */
+                color: #0043da;
             }
 
             .navbar-toggler {
@@ -131,11 +131,11 @@
                 margin-bottom: 1.8rem;
             }
 
-            /* Mobile Styles */
             @media (max-width: 768px) {
                 .app-logo img {
-                    height: 24px; /* Ukuran logo sedikit lebih kecil di mobile */
+                    height: 24px;
                 }
+
                 .app-logo-text {
                     font-size: 0.9rem;
                     text-decoration: none;
@@ -170,6 +170,7 @@
                     border-top: 1px solid #f0f0f0;
                     font-size: 0.9rem;
                 }
+
                 .header-nav .nav-links-container a:first-child {
                     border-top: none;
                 }
@@ -217,9 +218,10 @@
         </div>
     </div>
 
-        @yield('main-content')
+    @yield('main-content')
 
-    <footer style="text-align: center; padding: 1.8rem; margin-top: 1.8rem; margin-bottom: 0.8rem; color: #718096; font-size: 0.8rem;">
+    <footer
+        style="text-align: center; padding: 1.8rem; margin-top: 1.8rem; margin-bottom: 0.8rem; color: #718096; font-size: 0.8rem;">
         &copy; {{ now()->year }} Maintained by Kelompok Forecast.
     </footer>
 
@@ -229,12 +231,12 @@
 
     <script>
         // JavaScript untuk toggle navbar di mobile
-        document.addEventListener('DOMContentLoaded', function () {
+        document.addEventListener('DOMContentLoaded', function() {
             const toggler = document.querySelector('.navbar-toggler');
             const navLinksContainer = document.querySelector('.nav-links-container');
 
             if (toggler && navLinksContainer) {
-                toggler.addEventListener('click', function () {
+                toggler.addEventListener('click', function() {
                     navLinksContainer.classList.toggle('active');
                 });
             }

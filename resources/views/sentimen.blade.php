@@ -32,7 +32,6 @@
                                 aria-hidden="true"></span>
                             Simpan Hasil Ini
                         </button>
-                        {{-- Tombol "Tidak, Analisis Ulang" dihapus --}}
                     </div>
                 </div>
             </div>
@@ -45,17 +44,17 @@
 
         <script>
             let predictedLabel = '';
-            let originalComment = ''; // Untuk menyimpan teks komentar yang digunakan untuk prediksi
+            let originalComment = '';
 
             const sentimenForm = document.getElementById('sentimenForm');
             const reviewTextarea = document.getElementById('review_text');
             const btnAnalisis = document.getElementById('btnAnalisis');
-            const analisisSpinner = document.getElementById('analisisSpinner'); // Spinner untuk tombol analisis
+            const analisisSpinner = document.getElementById('analisisSpinner');
             const hasilBox = document.getElementById('hasilBox');
             const prediksiLabelSpan = document.getElementById('prediksiLabel');
             const originalCommentSpan = document.getElementById('originalCommentText');
             const btnYes = document.getElementById('btnYes');
-            const simpanSpinner = document.getElementById('simpanSpinner'); // Spinner untuk tombol simpan
+            const simpanSpinner = document.getElementById('simpanSpinner');
 
             sentimenForm.addEventListener('submit', async function(e) {
                 e.preventDefault();
@@ -66,12 +65,10 @@
                 sentimenForm.classList.remove('was-validated');
 
                 const review = reviewTextarea.value;
-                originalComment = review; // Simpan komentar untuk disimpan nanti
-
-                // Tampilkan spinner dan nonaktifkan tombol analisis
+                originalComment = review;
                 analisisSpinner.classList.remove('d-none');
                 btnAnalisis.disabled = true;
-                hasilBox.classList.add('d-none'); // Sembunyikan hasil sebelumnya
+                hasilBox.classList.add('d-none');
 
                 try {
                     const response = await fetch("{{ route('sentimen.predict') }}", {
@@ -89,10 +86,10 @@
 
                     if (response.ok) {
                         predictedLabel = data.label_sentimen
-                    .toLowerCase(); // Pastikan sudah lowercase dari controller
-                        // const displaySentiment = predictedLabel.charAt(0).toUpperCase() + predictedLabel.slice(1); // Baris ini diubah
+                            .toLowerCase();
 
-                        prediksiLabelSpan.innerText = predictedLabel; // Langsung gunakan label lowercase
+
+                        prediksiLabelSpan.innerText = predictedLabel;
                         originalCommentSpan.innerText = data.original_comment || review;
 
                         prediksiLabelSpan.classList.remove('text-success', 'text-danger', 'text-warning',
@@ -104,7 +101,7 @@
                         } else if (predictedLabel === 'netral') {
                             prediksiLabelSpan.classList.add('text-warning');
                         } else {
-                            prediksiLabelSpan.classList.add('text-primary'); // Default untuk 'Tidak diketahui'
+                            prediksiLabelSpan.classList.add('text-primary');
                         }
 
                         hasilBox.classList.remove('d-none');
@@ -131,7 +128,7 @@
                         confirmButtonText: 'Oke'
                     });
                 } finally {
-                    // Sembunyikan spinner dan aktifkan kembali tombol analisis
+
                     analisisSpinner.classList.add('d-none');
                     btnAnalisis.disabled = false;
                 }
@@ -143,7 +140,6 @@
                     return;
                 }
 
-                // Tampilkan spinner dan nonaktifkan tombol simpan
                 simpanSpinner.classList.remove('d-none');
                 btnYes.disabled = true;
 
@@ -192,7 +188,7 @@
                         confirmButtonText: 'Oke'
                     });
                 } finally {
-                    // Sembunyikan spinner dan aktifkan kembali tombol simpan
+
                     simpanSpinner.classList.add('d-none');
                     btnYes.disabled = false;
                 }

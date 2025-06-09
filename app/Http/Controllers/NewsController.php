@@ -36,10 +36,10 @@ class NewsController extends Controller
         // Parameters for Newsdata.io
         $apiParams = [
             'apikey' => $this->newsdataApiKey,
-            'q' => 'bisnis', // Broader query
+            'q' => 'bisnis',
             'language' => 'id',
-            'category' => 'business,politics,technology,top,world', // Broader categories
-            'size' => 10 // Fetch a bit more to have variety
+            'category' => 'business,politics,technology,top,world',
+            'size' => 10
         ];
         $response = Http::timeout(10)->get($this->newsdataApiBaseUrl, $apiParams);
         $beritaItems = [];
@@ -54,9 +54,9 @@ class NewsController extends Controller
                     continue;
                 }
                 $beritaItems[] = [
-                    'id' => 'newsdata_' . $article['article_id'], // Unique ID for internal routing
+                    'id' => 'newsdata_' . $article['article_id'],
                     'judul' => $article['title'],
-                    'slug' => Str::slug($article['title'] . '-' . $article['article_id']), // Slug for potential internal routing
+                    'slug' => Str::slug($article['title'] . '-' . $article['article_id']),
                     'gambar' => $article['image_url'] ?? null,
                     'kutipan' => Str::limit(strip_tags($article['description'] ?? ($article['snippet'] ?? 'Kutipan tidak tersedia.')), 150),
                     'tanggal_raw' => $article['pubDate'] ?? null,
@@ -81,15 +81,15 @@ class NewsController extends Controller
         // Parameters for NewsAPI.ai (Event Registry)
         $apiParams = [
             'action' => 'getArticles',
-            'keyword' => 'ekonomi', // Broader query
+            'keyword' => 'ekonomi',
             'lang' => 'ind',
             'articlesSortBy' => 'date',
-            'articlesCount' => 10, // Fetch a bit more
-            'articleBodyLen' => 500, // Max length of the article body
+            'articlesCount' => 10,
+            'articleBodyLen' => 500,
             'resultType' => 'articles',
             'dataType' => ['news', 'blog'],
             'apiKey' => $this->newsapiAiKey,
-            'forceMaxDataTimeWindow' => 31 // Look back up to 31 days for articles
+            'forceMaxDataTimeWindow' => 31
         ];
 
         $response = Http::timeout(10)->get($this->newsapiAiBaseUrl, $apiParams);
@@ -112,7 +112,7 @@ class NewsController extends Controller
                 $penulisArray = [];
                 if (!empty($article['authors'])) {
                     foreach ($article['authors'] as $author) {
-                        if(isset($author['name'])) {
+                        if (isset($author['name'])) {
                             $penulisArray[] = $author['name'];
                         }
                     }
@@ -122,7 +122,7 @@ class NewsController extends Controller
                 $beritaItems[] = [
                     'id' => $uniqueId,
                     'judul' => $article['title'],
-                    'slug' => Str::slug($article['title'] . '-' . $article['uri']), // Slug for potential internal routing
+                    'slug' => Str::slug($article['title'] . '-' . $article['uri']),
                     'gambar' => $article['image'] ?? null,
                     'kutipan' => Str::limit(strip_tags($article['body'] ?? 'Kutipan tidak tersedia.'), 150),
                     'tanggal_raw' => $article['dateTimePub'] ?? ($article['dateTime'] ?? null),
@@ -134,7 +134,7 @@ class NewsController extends Controller
         } else {
             $error = "NewsAPI.ai Error: Status " . ($response->status() ?: 'Unknown');
             $loggedParams = $apiParams;
-            unset($loggedParams['apiKey']); // Do not log the API key
+            unset($loggedParams['apiKey']);
             Log::error('NewsAPI.ai Fetch Error:', [
                 'status_code' => $response->status(),
                 'response_body' => $response->body(),
@@ -175,12 +175,7 @@ class NewsController extends Controller
 
         $beritaItems = $uniqueBeritaItems;
 
-        // The 'news' view (news.blade.php) will receive $beritaItems.
-        // Each item in $beritaItems contains 'id', 'slug', 'judul', 'gambar', 'kutipan', 'sumber_link', etc.
-        // In news.blade.php, the image and title themselves should NOT be direct links.
-        // Instead, a "Read More" link/button should use $item['id'] (or $item['slug'])
-        // to navigate to the internal 'show' route (e.g., route('news.show', ['articleId' => $item['id']])).
-        // The 'show' view will then provide the 'sumber_link' to the original article.
+
         return view('news', compact('beritaItems', 'apiError'));
     }
 
@@ -192,9 +187,8 @@ class NewsController extends Controller
     public function show($articleId)
     {
         $berita = null;
-        $apiParamsUsed = []; // For logging
+        $apiParamsUsed = [];
 
-        // Helper function to create berita object, reduces repetition
         $createBeritaObject = function ($article, $idPrefix, $idField, $linkField, $contentFields, $dateField, $authorLogic) {
             if (empty($article[$linkField])) {
                 Log::warning('Attempted to create berita object for show page with missing link field.', ['idPrefix' => $idPrefix, 'idField' => $idField, 'article_title' => $article['title'] ?? 'N/A']);
@@ -206,7 +200,7 @@ class NewsController extends Controller
             $slugId = is_array($actualIdValue) ? http_build_query($actualIdValue) : (string)$actualIdValue;
 
             $content = 'Konten lengkap tidak tersedia.';
-            foreach($contentFields as $field) {
+            foreach ($contentFields as $field) {
                 if (!empty($article[$field])) {
                     // Sanitize content, allowing basic HTML tags for formatting.
                     $content = strip_tags($article[$field], '<p><br><a><img><h1><h2><h3><h4><h5><h6><strong><em><ul><ol><li><blockquote>');
@@ -245,16 +239,11 @@ class NewsController extends Controller
             if (!$this->newsdataApiKey) abort(500, 'Konfigurasi API Newsdata bermasalah.');
 
             $apiParamsUsed = ['apikey' => $this->newsdataApiKey, 'language' => 'id,en', 'size' => 5];
-            // Newsdata.io might not have a direct ID fetch for 'latest'.
-            // A robust way would be to query for something unique if possible, or broaden search.
-            // For this example, we'll try to use the ID in 'q', but it might not be effective.
-            // A better approach for 'show' might involve passing more context or searching by title if ID isn't directly queryable.
-            $apiParamsUsed['q'] = $actualId; // This might not work as expected for all ID types.
-            if(!is_numeric($actualId) && !Str::isUuid($actualId) && strlen($actualId) > 32){ // Heuristic for potentially non-ID like strings from title/slug
-                 // If actualId seems like it was derived from a title part of a slug, try searching for that title part.
-                 // This is a fallback and might fetch multiple articles.
-                $apiParamsUsed['q'] = preg_replace('/-[^-]*$/', '', $actualId); // Try removing a potential suffix like '-newsdata_xxxx'
-                $apiParamsUsed['size'] = 20; // Fetch more to increase chance of finding it
+
+            if (!is_numeric($actualId) && !Str::isUuid($actualId) && strlen($actualId) > 32) {
+
+                $apiParamsUsed['q'] = preg_replace('/-[^-]*$/', '', $actualId);
+                $apiParamsUsed['size'] = 20;
             }
 
 
@@ -270,9 +259,9 @@ class NewsController extends Controller
                             'newsdata_',
                             'article_id',
                             'link',
-                            ['content', 'description', 'snippet'], // 'content' is often the full article if available
+                            ['content', 'description', 'snippet'],
                             'pubDate',
-                            function($art) {
+                            function ($art) {
                                 return isset($art['creator']) && is_array($art['creator']) && !empty($art['creator']) ? implode(', ', $art['creator']) : ($art['source_id'] ?? 'Sumber Tidak Diketahui');
                             }
                         );
@@ -282,7 +271,6 @@ class NewsController extends Controller
             } else {
                 Log::error('Gagal mengambil data Newsdata API untuk show.', ['status' => $response->status(), 'body' => $response->body(), 'params_used' => $apiParamsUsed]);
             }
-
         } elseif (Str::startsWith($articleId, 'newsapiai_')) {
             $actualUri = Str::after($articleId, 'newsapiai_');
             if (!$this->newsapiAiKey) abort(500, 'Konfigurasi API NewsAPI.ai bermasalah.');
@@ -292,11 +280,11 @@ class NewsController extends Controller
                 'action' => 'getArticle',
                 'articleUri' => $actualUri,
                 'resultType' => 'info',
-                'articleBodyLen' => -1, // Get full body
+                'articleBodyLen' => -1,
                 'includeArticleImage' => true,
                 'apiKey' => $this->newsapiAiKey
             ];
-            $response = Http::timeout(15)->get('http://eventregistry.org/api/v1/article/getArticle', $apiParamsUsed); // Corrected base URL for single article
+            $response = Http::timeout(15)->get('http://eventregistry.org/api/v1/article/getArticle', $apiParamsUsed);
 
             if ($response->successful() && isset($response->json()[$actualUri]['info'])) {
                 $article = $response->json()[$actualUri]['info'];
@@ -307,12 +295,12 @@ class NewsController extends Controller
                         'uri',
                         'url',
                         ['body'],
-                        'dateTimePub', // Or 'dateTime' as fallback, handled by createBeritaObject
-                        function($art_detail) {
+                        'dateTimePub',
+                        function ($art_detail) {
                             $penulisArray = [];
                             if (!empty($art_detail['authors'])) {
                                 foreach ($art_detail['authors'] as $author) {
-                                    if(isset($author['name'])) {
+                                    if (isset($author['name'])) {
                                         $penulisArray[] = $author['name'];
                                     }
                                 }
@@ -321,10 +309,11 @@ class NewsController extends Controller
                         }
                     );
                 } else {
-                     Log::warning('NewsAPI.ai article fetched for show page is missing URI or URL.', ['article_uri' => $actualUri, 'response_data' => $article]);
+                    Log::warning('NewsAPI.ai article fetched for show page is missing URI or URL.', ['article_uri' => $actualUri, 'response_data' => $article]);
                 }
             } else {
-                $loggedParamsShow = $apiParamsUsed; unset($loggedParamsShow['apiKey']);
+                $loggedParamsShow = $apiParamsUsed;
+                unset($loggedParamsShow['apiKey']);
                 Log::error('Gagal mengambil data NewsAPI.ai untuk show.', ['status' => $response->status(), 'body' => $response->body(), 'params_used' => $loggedParamsShow, 'actual_uri_sent' => $actualUri]);
             }
         } else {

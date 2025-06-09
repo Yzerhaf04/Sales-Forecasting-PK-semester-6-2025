@@ -6,6 +6,7 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ChatbotController;
 use App\Http\Controllers\NewsController;
+use App\Http\Controllers\SalesAgregatController;
 use App\Http\Controllers\SentimenController;
 use App\Http\Controllers\WelcomeController;
 

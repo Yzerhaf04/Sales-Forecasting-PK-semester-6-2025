@@ -1,29 +1,29 @@
 @extends('layouts.public')
 
-@section('title', 'RDR Forecast: Prediksi Penjualan Akurat, Keputusan Bisnis Makin Tepat!')
+@section('title', 'Insightify: Prediksi Penjualan Akurat, Keputusan Bisnis Makin Tepat!')
 
 @push('styles')
     <style>
         /* Custom Styles for Bootstrap version */
         body {
             font-family: 'Inter', sans-serif;
-            /* Pastikan font Inter sudah di-load di layout Anda jika ingin digunakan */
+
             background-color: #f8f9fa;
-            /* Bootstrap light background color */
-            overflow-x: hidden; /* Mencegah horizontal scroll jika ada elemen yang sedikit keluar batas saat animasi */
+
+            overflow-x: hidden;
         }
 
         .hero-section {
             color: white;
             position: relative;
             overflow: hidden;
-            /* Untuk membatasi animasi pseudo-element */
-            padding-top: 9rem; /* Sesuai permintaan terakhir Anda */
-            padding-bottom: 8rem; /* Sesuai permintaan terakhir Anda */
+
+            padding-top: 9rem;
+            padding-bottom: 8rem;
         }
 
         .hero-section::before {
-            /* Untuk gambar latar belakang */
+
             content: "";
             position: absolute;
             top: 0;
@@ -31,13 +31,12 @@
             right: 0;
             bottom: 0;
             background-image: url("{{ asset('img/herosection.png') }}");
-            /* Ganti dengan URL gambar Anda */
+
             background-size: cover;
             background-position: center;
-            background-attachment: fixed; /* Membuat background image tetap pada posisinya saat scroll */
+            background-attachment: fixed;
             z-index: -2;
-            /* Di belakang overlay dan konten */
-            /* Animasi zoom dihilangkan */
+
         }
 
         .hero-section::after {
@@ -48,9 +47,9 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background-color: rgba(0, 0, 0, 0.4); /* Sedikit lebih gelap untuk kontras yang lebih baik jika diperlukan */
+            background-color: rgba(0, 0, 0, 0.4);
             z-index: -1;
-            /* Di atas gambar, di bawah teks */
+
         }
 
         .btn-custom-primary {
@@ -59,13 +58,13 @@
             font-weight: bold;
             padding: 0.75rem 1.5rem;
             transition: all 0.3s ease;
-            /* border-color tidak diatur di sini, akan menggunakan default Bootstrap atau tidak ada */
+
         }
 
         .btn-custom-primary:hover {
             background-color: #0043da;
             color: #ffffff;
-            border-color: #0043da; /* border-color diatur saat hover */
+            border-color: #0043da;
         }
 
         .feature-card .feature-icon-wrapper {
@@ -99,6 +98,7 @@
         .hero-section .display-4 {
             font-size: 2.8rem;
         }
+
         .hero-section .lead {
             font-size: 1.1rem;
             color: #f0f0f0 !important;
@@ -108,6 +108,7 @@
             .hero-section .display-4 {
                 font-size: 3.5rem;
             }
+
             .hero-section .lead {
                 font-size: 1.25rem;
             }
@@ -118,14 +119,13 @@
             opacity: 0;
             transform: translateY(50px);
             transition: opacity 0.6s ease-out, transform 0.6s ease-out;
-            will-change: opacity, transform; /* Optimasi untuk browser */
+            will-change: opacity, transform;
         }
 
         .scroll-animate.is-visible {
             opacity: 1;
             transform: translateY(0);
         }
-
     </style>
 @endpush
 
@@ -134,7 +134,7 @@
     <header class="hero-section text-center">
         <div class="container position-relative" style="z-index: 1;">
             <a href="{{ url('/') }}" class="d-inline-block mb-4 h2 fw-bold text-white text-decoration-none">
-                <span style="color: #0043da;">RDR Forecast</span>
+                <span style="color: #0043da;">INSIGHTIFY</span>
             </a>
             <h1 class="display-4 fw-bold mb-4" style="color: #ffffff;">
                 Prediksi Penjualan Akurat, Keputusan Bisnis Makin Tepat!
@@ -153,7 +153,6 @@
         </div>
     </header>
 
-    {{-- Tambahkan class "scroll-animate" pada section yang ingin dianimasi --}}
     <section id="features" class="py-5 bg-light scroll-animate">
         <div class="container">
             <div class="text-center mb-5">
@@ -215,7 +214,6 @@
         </div>
     </section>
 
-    {{-- Tambahkan class "scroll-animate" pada section yang ingin dianimasi --}}
     <section id="team" class="py-5 bg-white scroll-animate">
         <div class="container">
             <div class="text-center mb-5">
@@ -230,10 +228,12 @@
                     <div class="card team-member-card text-center p-4 shadow-sm flex-fill h-100">
                         <img src="{{ asset('img/member1.jpg') }}" alt="Foto M Rizki Awaluddin M"
                             onerror="this.onerror=null;this.src='https://placehold.co/150x150/E0E0E0/909090?text=Rizki';"
-                            class="team-member-avatar mx-auto img-fluid" style="width: 150px; height: 150px; margin-top: 1.2rem;">
+                            class="team-member-avatar mx-auto img-fluid"
+                            style="width: 150px; height: 150px; margin-top: 1.2rem;">
                         <div class="card-body p-0">
                             <h4 class="card-title h6 fw-semibold mb-1 mt-3">M Rizki Awaluddin M</h4>
-                            <p class="text-muted small mb-0"> <a href="mailto:muhammad.rizki.awaluddin.mubin.tik22@mhsw.pnj.ac.id"
+                            <p class="text-muted small mb-0"> <a
+                                    href="mailto:muhammad.rizki.awaluddin.mubin.tik22@mhsw.pnj.ac.id"
                                     class="text-muted email-address">muhammad.rizki.awaluddin.mubin.tik22@mhsw.pnj.ac.id</a>
                             </p>
                         </div>
@@ -241,7 +241,7 @@
                 </div>
                 {{-- Anggota Tim 2 --}}
                 <div class="col-sm-6 col-md-4 col-lg-3 d-flex">
-                    <div class="card team-member-card text-center p-4 shadow-sm flex-fill h-100" >
+                    <div class="card team-member-card text-center p-4 shadow-sm flex-fill h-100">
                         <img src="{{ asset('img/member2.png') }}" alt="Foto M Dzaky Naufal Asadel"
                             onerror="this.onerror=null;this.src='https://placehold.co/150x150/E8E8E8/A0A0A0?text=Dzaky';"
                             class="team-member-avatar mx-auto img-fluid" style="width: 170px; height: 170px;">
@@ -260,7 +260,8 @@
 
                         <img src="{{ asset('img/member3.png') }}" alt="Foto Teuku Rafly Fahrezy"
                             onerror="this.onerror=null;this.src='https://placehold.co/150x150/F0F0F0/B0B0B0?text=Rafly';"
-                            class="team-member-avatar mx-auto img-fluid" style="width: 160px; height: 160px; margin-top: 0.6rem; ">
+                            class="team-member-avatar mx-auto img-fluid"
+                            style="width: 160px; height: 160px; margin-top: 0.6rem; ">
                         <div class="card-body p-0">
                             <h4 class="card-title h6 fw-semibold mb-1 mt-3">Teuku Rafly Fahrezy</h4>
                             <p class="text-muted small mb-0">
@@ -276,53 +277,52 @@
 @endsection
 
 @push('scripts')
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const animatedSections = document.querySelectorAll('.scroll-animate');
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const animatedSections = document.querySelectorAll('.scroll-animate');
 
-        if ("IntersectionObserver" in window) {
-            let observer = new IntersectionObserver((entries, observerInstance) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        entry.target.classList.add('is-visible');
-                        observerInstance.unobserve(entry.target); // Hentikan observasi setelah animasi
-                    }
+            if ("IntersectionObserver" in window) {
+                let observer = new IntersectionObserver((entries, observerInstance) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            entry.target.classList.add('is-visible');
+                            observerInstance.unobserve(entry.target);
+                        }
+                    });
+                }, {
+                    threshold: 0.1
                 });
-            }, {
-                threshold: 0.1 // Picu animasi ketika 10% elemen terlihat
-            });
 
-            animatedSections.forEach(section => {
-                observer.observe(section);
-            });
-        } else {
-            // Fallback untuk browser yang tidak mendukung IntersectionObserver (jarang terjadi)
-            // Animasi mungkin tidak sehalus atau seefisien ini
-            function checkVisibility() {
                 animatedSections.forEach(section => {
-                    const rect = section.getBoundingClientRect();
-                    if (rect.top <= (window.innerHeight || document.documentElement.clientHeight) && rect.bottom >= 0) {
-                        section.classList.add('is-visible');
-                    }
+                    observer.observe(section);
                 });
-            }
-            window.addEventListener('scroll', checkVisibility);
-            window.addEventListener('resize', checkVisibility);
-            checkVisibility(); // Cek saat halaman dimuat
-        }
+            } else {
 
-        // Contoh: Smooth scroll untuk navigasi jika ada link ke section
-        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-            anchor.addEventListener('click', function (e) {
-                e.preventDefault();
-                const targetElement = document.querySelector(this.getAttribute('href'));
-                if (targetElement) {
-                    targetElement.scrollIntoView({
-                        behavior: 'smooth'
+                function checkVisibility() {
+                    animatedSections.forEach(section => {
+                        const rect = section.getBoundingClientRect();
+                        if (rect.top <= (window.innerHeight || document.documentElement.clientHeight) &&
+                            rect.bottom >= 0) {
+                            section.classList.add('is-visible');
+                        }
                     });
                 }
+                window.addEventListener('scroll', checkVisibility);
+                window.addEventListener('resize', checkVisibility);
+                checkVisibility();
+            }
+
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const targetElement = document.querySelector(this.getAttribute('href'));
+                    if (targetElement) {
+                        targetElement.scrollIntoView({
+                            behavior: 'smooth'
+                        });
+                    }
+                });
             });
         });
-    });
-</script>
+    </script>
 @endpush

@@ -65,7 +65,6 @@
 
         #chatbox::-webkit-scrollbar-track {
             background: #f4f6f9;
-            /* Match chatbox background */
         }
 
         #chatbox {
@@ -183,7 +182,7 @@
 
                 const loadingMessageId = 'loading-' + Date.now();
                 addMessage('<em>Sedang memproses...</em>', 'bot',
-                loadingMessageId);
+                    loadingMessageId);
 
                 try {
                     const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');

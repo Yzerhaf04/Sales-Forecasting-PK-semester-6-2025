@@ -6,10 +6,10 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\SalesData;
 use App\Models\SentimenData;
+use App\Models\SalesAgregatData;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
-// use Illuminate\Support\Facades\Log; // Aktifkan jika perlu logging
 
 class HomeController extends Controller
 {
@@ -35,22 +35,47 @@ class HomeController extends Controller
         $lastUpdatedDateOnlySales = 'T/A';
         $totalSentimenComments = SentimenData::count();
 
-        // --- Logika untuk SalesData ---
+
+        // --- Logic for SalesAgregatData Chart (Separate Card) ---
+        // REVERTED: Fetching data directly without grouping as requested.
+        // This will display the data exactly as it is in the 'sales_agregat' table.
+        $salesAgregatData = SalesAgregatData::orderBy('date', 'asc')->get();
+
+        $agregatLabels = [];
+        $actualAgregatData = [];
+        $forecastAgregatData = [];
+        // The date from which data is considered a forecast.
+        $forecastStartDate = Carbon::parse('2012-10-26');
+
+        foreach ($salesAgregatData as $item) {
+            $currentDate = Carbon::parse($item->date);
+            $agregatLabels[] = $currentDate->translatedFormat('d M Y');
+
+            // Split the data into 'actual' and 'forecast' based on the date
+            if ($currentDate->gte($forecastStartDate)) {
+                // Data on or after this date is considered forecast data
+                $actualAgregatData[] = null; // No actual value for this period
+                $forecastAgregatData[] = (float)$item->actual; // REVERTED: Use the 'actual' column directly
+            } else {
+                // Data before this date is considered actual historical data
+                $actualAgregatData[] = (float)$item->actual; // REVERTED: Use the 'actual' column directly
+                $forecastAgregatData[] = null; // No forecast value for this period
+            }
+        }
+        // --- End of Logic for SalesAgregatData Chart ---
+
+
         $overallLastDailyDateString = SalesData::where('dept', $selectedDept)
             ->where('store', $selectedStore)
             ->max('date');
 
         if ($overallLastDailyDateString) {
             $overallLastDailyDate = Carbon::parse($overallLastDailyDateString)->startOfDay();
-            $forecastBoundaryStartDateDefault = $overallLastDailyDate->copy()->subDays(89)->startOfDay(); // Digunakan untuk periode non-mingguan
+            $forecastBoundaryStartDateDefault = $overallLastDailyDate->copy()->subDays(89)->startOfDay();
 
-            // Penyesuaian logika pengambilan data berdasarkan periode
             if ($period === 'weekly') {
-                // Untuk periode mingguan, data historis aktual utama adalah dari 2010-02-05 hingga 2012-10-25
                 $actualHistoricStartWeekly = Carbon::parse('2010-02-05')->startOfDay();
-                $actualHistoricEndWeekly = Carbon::parse('2012-10-25')->startOfDay(); // Sehari sebelum forecast dimulai
-
-                // Data "forecast dari masa lalu" untuk mingguan dimulai dari 2012-10-26
+                $actualHistoricEndWeekly = Carbon::parse('2012-10-25')->startOfDay();
                 $forecastFromPastStartWeekly = Carbon::parse('2012-10-26')->startOfDay();
 
                 $rawDailyActualHistoricalSales = SalesData::where('dept', $selectedDept)
@@ -59,12 +84,7 @@ class HomeController extends Controller
                     ->where('date', '<=', $actualHistoricEndWeekly->toDateString())
                     ->orderBy('date', 'asc')
                     ->get(['date', 'daily_sales'])
-                    ->map(function ($item) {
-                        return [
-                            'date' => Carbon::parse($item->date)->startOfDay(),
-                            'sales' => (float) $item->daily_sales,
-                        ];
-                    });
+                    ->map(fn($item) => ['date' => Carbon::parse($item->date)->startOfDay(), 'sales' => (float)$item->daily_sales]);
 
                 $rawDailyForecastSalesFromPast = SalesData::where('dept', $selectedDept)
                     ->where('store', $selectedStore)
@@ -72,41 +92,21 @@ class HomeController extends Controller
                     ->where('date', '<=', $overallLastDailyDate->toDateString())
                     ->orderBy('date', 'asc')
                     ->get(['date', 'daily_sales'])
-                    ->map(function ($item) {
-                        return [
-                            'date' => Carbon::parse($item->date)->startOfDay(),
-                            'sales' => (float) $item->daily_sales,
-                        ];
-                    });
-
+                    ->map(fn($item) => ['date' => Carbon::parse($item->date)->startOfDay(), 'sales' => (float)$item->daily_sales]);
             } else {
-                // Logika asli untuk periode harian dan bulanan
                 $rawDailyActualHistoricalSales = SalesData::where('dept', $selectedDept)
                     ->where('store', $selectedStore)
                     ->where('date', '<', $forecastBoundaryStartDateDefault->toDateString())
                     ->orderBy('date', 'asc')
                     ->get(['date', 'daily_sales'])
-                    ->map(function ($item) {
-                        return [
-                            'date' => Carbon::parse($item->date)->startOfDay(),
-                            'sales' => (float) $item->daily_sales,
-                        ];
-                    });
+                    ->map(fn($item) => ['date' => Carbon::parse($item->date)->startOfDay(), 'sales' => (float)$item->daily_sales]);
 
                 $rawDailyForecastSalesFromPast = SalesData::where('dept', $selectedDept)
                     ->where('store', $selectedStore)
-                    ->whereBetween('date', [
-                        $forecastBoundaryStartDateDefault->toDateString(),
-                        $overallLastDailyDate->toDateString()
-                    ])
+                    ->whereBetween('date', [$forecastBoundaryStartDateDefault->toDateString(), $overallLastDailyDate->toDateString()])
                     ->orderBy('date', 'asc')
                     ->get(['date', 'daily_sales'])
-                    ->map(function ($item) {
-                        return [
-                            'date' => Carbon::parse($item->date)->startOfDay(),
-                            'sales' => (float) $item->daily_sales,
-                        ];
-                    });
+                    ->map(fn($item) => ['date' => Carbon::parse($item->date)->startOfDay(), 'sales' => (float)$item->daily_sales]);
             }
 
             $sumOfActualSales = $rawDailyActualHistoricalSales->sum('sales');
@@ -119,36 +119,22 @@ class HomeController extends Controller
             $forecastLabelsFromPast = !empty($groupedForecastSalesFromPast) ? array_keys($groupedForecastSalesFromPast) : [];
 
             $allCombinedLabels = $this->mergeAndSortLabels($actualLabels, $forecastLabelsFromPast, $period);
-
             $processedForecastDataForChart = $groupedForecastSalesFromPast;
-            // Logika penyambungan: pastikan nilai terakhir dari aktual (jika ada) menjadi titik awal forecast
+
             if (!empty($actualLabels) && !empty($groupedActualHistoricalSales)) {
                 $lastActualLabelWithValue = end($actualLabels);
                 if (isset($groupedActualHistoricalSales[$lastActualLabelWithValue])) {
                     $lastActualValue = $groupedActualHistoricalSales[$lastActualLabelWithValue];
-                    // Jika label terakhir aktual belum ada di data forecast (yang sekarang mungkin sudah mengandung 26 Okt 2012 dst),
-                    // tambahkan nilai terakhir aktual ke processedForecastDataForChart agar garis menyambung.
                     if (!isset($processedForecastDataForChart[$lastActualLabelWithValue])) {
-                        // Tambahkan ke awal agar tidak mengganggu urutan data forecast yang sudah ada
                         $processedForecastDataForChart = [$lastActualLabelWithValue => $lastActualValue] + $processedForecastDataForChart;
-                        // Jika $processedForecastDataForChart perlu diurutkan berdasarkan kunci setelah penambahan ini:
-                        // ksort($processedForecastDataForChart);
                     } else {
-                        // Jika label terakhir aktual SUDAH ADA di processedForecastDataForChart (misalnya, karena overlap atau data forecast dimulai tepat setelahnya),
-                        // pastikan nilai di titik sambung ini adalah nilai aktual terakhir.
-                        // Ini penting jika $forecastFromPastStartWeekly menghasilkan label yang sama dengan $lastActualLabelWithValue.
                         $processedForecastDataForChart[$lastActualLabelWithValue] = $lastActualValue;
                     }
                 }
             }
 
-
             foreach ($allCombinedLabels as $label) {
                 $alignedActualSales[] = $groupedActualHistoricalSales[$label] ?? null;
-                // Logika untuk $alignedForecastSales:
-                // Jika label saat ini adalah label terakhir dari data aktual historis,
-                // maka $alignedForecastSales harus mengambil nilai dari $groupedActualHistoricalSales di titik itu untuk menyambung.
-                // Untuk label setelahnya, ambil dari $processedForecastDataForChart.
                 if (count($actualLabels) > 0 && $label === $actualLabels[count($actualLabels) - 1] && isset($groupedActualHistoricalSales[$label])) {
                     $alignedForecastSales[] = $groupedActualHistoricalSales[$label];
                 } else {
@@ -156,13 +142,8 @@ class HomeController extends Controller
                 }
             }
 
-            $labelsForView = array_map(function ($label) use ($period) {
-                return $this->formatLabelForView($label, $period);
-            }, $allCombinedLabels);
-
-            $lastUpdateForFilterSales = SalesData::where('dept', $selectedDept)
-                ->where('store', $selectedStore)
-                ->max('updated_at');
+            $labelsForView = array_map(fn($label) => $this->formatLabelForView($label, $period), $allCombinedLabels);
+            $lastUpdateForFilterSales = SalesData::where('dept', $selectedDept)->where('store', $selectedStore)->max('updated_at');
             if ($lastUpdateForFilterSales) {
                 $lastUpdatedDateTimeSales = Carbon::parse($lastUpdateForFilterSales);
                 $lastUpdatedSales = $lastUpdatedDateTimeSales->translatedFormat('d F Y H:i');
@@ -176,19 +157,22 @@ class HomeController extends Controller
                 $lastUpdatedDateOnlySales = $lastUpdatedDateTimeSales->translatedFormat('d F Y');
             }
         }
-        // --- Akhir Logika SalesData ---
 
-        // --- Logika untuk SentimenData (Count dan Last Update) ---
         $jumlahPositif = SentimenData::where('label_sentimen', 'positif')->count();
         $jumlahNegatif = SentimenData::where('label_sentimen', 'negatif')->count();
         $jumlahNetral  = SentimenData::where('label_sentimen', 'netral')->count();
-
         $lastSentimenUpdateTimestamp = SentimenData::max('updated_at');
         $lastUpdatedSentimenDisplay = 'T/A';
         if ($lastSentimenUpdateTimestamp) {
             $lastUpdatedSentimenDisplay = Carbon::parse($lastSentimenUpdateTimestamp)->translatedFormat('d F Y H:i');
         }
-        // --- Akhir Logika SentimenData (Count dan Last Update) ---
+
+        $lastUpdateAgregat = 'T/A';
+        $lastAgregatUpdateTimestamp = SalesAgregatData::max('updated_at');
+        if ($lastAgregatUpdateTimestamp) {
+            $lastUpdateAgregat = Carbon::parse($lastAgregatUpdateTimestamp)->translatedFormat('d F Y H:i');
+        }
+        // --- Akhir Logika Last Update Agregat ---
 
         // --- Logika untuk Donut Chart Kata Populer Sentimen ---
         $sentimentDonutLabels = [];
@@ -196,49 +180,406 @@ class HomeController extends Controller
         $minWordLength = 3;
         $topNWords = 5;
 
-         // Daftar stop words gabungan Bahasa Indonesia dan Bahasa Inggris
+        // Daftar stop words gabungan Bahasa Indonesia dan Bahasa Inggris
 
         $stopWords = [
-             // Bahasa Indonesia
-            'yang', 'untuk', 'pada', 'ke', 'para', 'namun', 'menurut', 'antara', 'dia', 'dua',
-            'ia', 'seperti', 'jika', 'maka', 'dan', 'atau', 'tetapi', 'dengan', 'dari',
-            'oleh', 'lagi', 'juga', 'saat', 'hal', 'akan', 'adalah', 'ialah', 'saya', 'kamu',
-            'kami', 'anda', 'mereka', 'ini', 'itu', 'tersebut', 'sangat', 'sekali', 'tidak',
-            'sudah', 'belum', 'bisa', 'harus', 'agar', 'supaya', 'karena', 'sebab', 'mungkin',
-            'hanya', 'saja', 'pula', 'pun', 'agak', 'ada', 'adanya', 'adapun', 'agaknya',
-            'bagaimana', 'bagaimanapun', 'bagi', 'bahkan', 'bahwa', 'bahwasanya', 'beberapa',
-            'begitu', 'begitupun', 'demi', 'demikian', 'demikianlah', 'di', 'dong', 'enggak',
-            'enggaknya', 'entah', 'entahlah', 'gak', 'guna', 'hai', 'halo', 'hingga', 'iya',
-            'jadi', 'jangan', 'jangankan', 'justru', 'kalau', 'kok', 'kecuali', 'kemudian',
-            'kenapa', 'kepada', 'kepadanya', 'kita', 'lah', 'lain', 'lainnya', 'lalu', 'lebih',
-            'macam', 'mana', 'manalagi', 'masih', 'melainkan', 'memang', 'meski', 'meskipun',
-            'nah', 'nanti', 'oh', 'ok', 'pasti', 'per', 'pernah',
-            'rupa', 'rupanya', 'sebagaimana', 'sebelum', 'sebelumnya', 'sebenarnya', 'sedang',
-            'sedangkan', 'segala', 'sehingga', 'sejak', 'sekitar', 'selain', 'selalu', 'selama',
-            'seluruh', 'seluruhnya', 'sementara', 'semua', 'sendiri', 'sering', 'serta', 'siapa',
-            'sini', 'situ', 'suatu', 'tanpa', 'tapi', 'telah', 'tentang', 'tentu', 'terhadap',
-            'toh', 'turut', 'untukmu', 'wah', 'wahai', 'walau', 'walaupun', 'ya', 'yaitu', 'yakni', 'nya','shopee', 'yg', 'ga', 'gaada', 'gada', 'gk', 'gakada', 'gitu', 'aja', 'sih', 'kak', 'ka', 'min', 'admin', 'seller', 'kurir', 'produk', 'barang', 'toko', 'pengiriman', 'pengemasan', 'harga', 'kualitas', 'respon', 'pelayanan', 'cepat', 'lambat', 'bagus', 'jelek', 'baik', 'buruk', 'sesuai', 'pesanan', 'gambar', 'deskripsi', 'banget', 'bgt', 'mantap', 'oke', 'okey', 'thanks', 'thank', 'you', 'terima', 'kasih', 'recommended', 'rekomended', 'pokoknya', 'deh', 'mantul', 'jos', 'gandos','membantu','aplikasi',
+            // Bahasa Indonesia
+            'yang',
+            'untuk',
+            'pada',
+            'ke',
+            'para',
+            'namun',
+            'menurut',
+            'antara',
+            'dia',
+            'dua',
+            'ia',
+            'seperti',
+            'jika',
+            'maka',
+            'dan',
+            'atau',
+            'tetapi',
+            'dengan',
+            'dari',
+            'oleh',
+            'lagi',
+            'juga',
+            'saat',
+            'hal',
+            'akan',
+            'adalah',
+            'ialah',
+            'saya',
+            'kamu',
+            'kami',
+            'anda',
+            'mereka',
+            'ini',
+            'itu',
+            'tersebut',
+            'sangat',
+            'sekali',
+            'tidak',
+            'sudah',
+            'belum',
+            'bisa',
+            'harus',
+            'agar',
+            'supaya',
+            'karena',
+            'sebab',
+            'mungkin',
+            'hanya',
+            'saja',
+            'pula',
+            'pun',
+            'agak',
+            'ada',
+            'adanya',
+            'adapun',
+            'agaknya',
+            'bagaimana',
+            'bagaimanapun',
+            'bagi',
+            'bahkan',
+            'bahwa',
+            'bahwasanya',
+            'beberapa',
+            'begitu',
+            'begitupun',
+            'demi',
+            'demikian',
+            'demikianlah',
+            'di',
+            'dong',
+            'enggak',
+            'enggaknya',
+            'entah',
+            'entahlah',
+            'gak',
+            'guna',
+            'hai',
+            'halo',
+            'hingga',
+            'iya',
+            'jadi',
+            'jangan',
+            'jangankan',
+            'justru',
+            'kalau',
+            'kok',
+            'kecuali',
+            'kemudian',
+            'kenapa',
+            'kepada',
+            'kepadanya',
+            'kita',
+            'lah',
+            'lain',
+            'lainnya',
+            'lalu',
+            'lebih',
+            'macam',
+            'mana',
+            'manalagi',
+            'masih',
+            'melainkan',
+            'memang',
+            'meski',
+            'meskipun',
+            'nah',
+            'nanti',
+            'oh',
+            'ok',
+            'pasti',
+            'per',
+            'pernah',
+            'rupa',
+            'rupanya',
+            'sebagaimana',
+            'sebelum',
+            'sebelumnya',
+            'sebenarnya',
+            'sedang',
+            'sedangkan',
+            'segala',
+            'sehingga',
+            'sejak',
+            'sekitar',
+            'selain',
+            'selalu',
+            'selama',
+            'seluruh',
+            'seluruhnya',
+            'sementara',
+            'semua',
+            'sendiri',
+            'sering',
+            'serta',
+            'siapa',
+            'sini',
+            'situ',
+            'suatu',
+            'tanpa',
+            'tapi',
+            'telah',
+            'tentang',
+            'tentu',
+            'terhadap',
+            'toh',
+            'turut',
+            'untukmu',
+            'wah',
+            'wahai',
+            'walau',
+            'walaupun',
+            'ya',
+            'yaitu',
+            'yakni',
+            'nya',
+            'shopee',
+            'yg',
+            'ga',
+            'gaada',
+            'gada',
+            'gk',
+            'gakada',
+            'gitu',
+            'aja',
+            'sih',
+            'kak',
+            'ka',
+            'min',
+            'admin',
+            'seller',
+            'kurir',
+            'produk',
+            'barang',
+            'toko',
+            'pengiriman',
+            'pengemasan',
+            'harga',
+            'kualitas',
+            'respon',
+            'pelayanan',
+            'cepat',
+            'lambat',
+            'bagus',
+            'jelek',
+            'baik',
+            'buruk',
+            'sesuai',
+            'pesanan',
+            'gambar',
+            'deskripsi',
+            'banget',
+            'bgt',
+            'mantap',
+            'oke',
+            'okey',
+            'thanks',
+            'thank',
+            'you',
+            'terima',
+            'kasih',
+            'recommended',
+            'rekomended',
+            'pokoknya',
+            'deh',
+            'mantul',
+            'jos',
+            'gandos',
+            'membantu',
+            'aplikasi',
 
             // Bahasa Inggris (daftar bisa diperpanjang)
-            'a', 'an', 'the', 'is', 'are', 'was', 'were', 'be', 'being', 'been', 'have', 'has', 'had',
-            'do', 'does', 'did', 'will', 'would', 'should', 'can', 'could', 'may', 'might', 'must',
-            'and', 'but', 'or', 'nor', 'for', 'so', 'yet', 'if', 'then', 'else', 'when', 'where',
-            'why', 'how', 'what', 'which', 'who', 'whom', 'whose', 'this', 'that', 'these', 'those',
-            'am', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them',
-            'my', 'your', 'his', 'its', 'our', 'their', // 'your' sudah ada
-            'mine', 'yours', 'hers', 'ours', 'theirs',
-            'myself', 'yourself', 'himself', 'herself', 'itself', 'ourselves', 'yourselves', 'themselves',
-            'in', 'on', 'at', 'by', 'from', 'to', 'up', 'down', 'out', 'over', 'under', 'again',
-            'further', 'once', 'here', 'there', 'all', 'any', 'both', 'each', 'few', 'more', // 'then' sudah ada
-            'most', 'other', 'some', 'such', 'no', 'not', 'only', 'own', 'same', // 'so', 'than' sudah ada
-            'too', 'very', 's', 't', 'just', 'don', 'shouldv', 'now', 'd', 'll', 'm', 'o', 're',
-            've', 'y', 'ain', 'aren', 'couldn', 'didn', 'doesn', 'hadn', 'hasn', 'haven', 'isn',
-            'ma', 'mightn', 'mustn', 'needn', 'shan', 'shouldn', 'wasn', 'weren', 'won', 'wouldn',
-            'about', 'above', 'after', 'against', 'because', 'before', 'below', 'between', 'into',
-            'through', 'during', 'of', 'off', 'throughout', 'until', 'while', 'with', 'product', 'item', 'seller', 'shop', 'store', 'price', 'quality', 'shipping', 'delivery', 'response', 'service', 'good', 'bad', 'great', 'nice', 'fast', 'slow', 'recommended', 'really', 'very',
-];
-
-
+            'a',
+            'an',
+            'the',
+            'is',
+            'are',
+            'was',
+            'were',
+            'be',
+            'being',
+            'been',
+            'have',
+            'has',
+            'had',
+            'do',
+            'does',
+            'did',
+            'will',
+            'would',
+            'should',
+            'can',
+            'could',
+            'may',
+            'might',
+            'must',
+            'and',
+            'but',
+            'or',
+            'nor',
+            'for',
+            'so',
+            'yet',
+            'if',
+            'then',
+            'else',
+            'when',
+            'where',
+            'why',
+            'how',
+            'what',
+            'which',
+            'who',
+            'whom',
+            'whose',
+            'this',
+            'that',
+            'these',
+            'those',
+            'am',
+            'i',
+            'you',
+            'he',
+            'she',
+            'it',
+            'we',
+            'they',
+            'me',
+            'him',
+            'her',
+            'us',
+            'them',
+            'my',
+            'your',
+            'his',
+            'its',
+            'our',
+            'their',
+            'mine',
+            'yours',
+            'hers',
+            'ours',
+            'theirs',
+            'myself',
+            'yourself',
+            'himself',
+            'herself',
+            'itself',
+            'ourselves',
+            'yourselves',
+            'themselves',
+            'in',
+            'on',
+            'at',
+            'by',
+            'from',
+            'to',
+            'up',
+            'down',
+            'out',
+            'over',
+            'under',
+            'again',
+            'further',
+            'once',
+            'here',
+            'there',
+            'all',
+            'any',
+            'both',
+            'each',
+            'few',
+            'more',
+            'then',
+            'most',
+            'other',
+            'some',
+            'such',
+            'no',
+            'not',
+            'only',
+            'own',
+            'same',
+            'so',
+            'than',
+            'too',
+            'very',
+            's',
+            't',
+            'just',
+            'don',
+            'shouldv',
+            'now',
+            'd',
+            'll',
+            'm',
+            'o',
+            're',
+            've',
+            'y',
+            'ain',
+            'aren',
+            'couldn',
+            'didn',
+            'doesn',
+            'hadn',
+            'hasn',
+            'haven',
+            'isn',
+            'ma',
+            'mightn',
+            'mustn',
+            'needn',
+            'shan',
+            'shouldn',
+            'wasn',
+            'weren',
+            'won',
+            'wouldn',
+            'about',
+            'above',
+            'after',
+            'against',
+            'because',
+            'before',
+            'below',
+            'between',
+            'into',
+            'through',
+            'during',
+            'of',
+            'off',
+            'throughout',
+            'until',
+            'while',
+            'with',
+            'product',
+            'item',
+            'seller',
+            'shop',
+            'store',
+            'price',
+            'quality',
+            'shipping',
+            'delivery',
+            'response',
+            'service',
+            'good',
+            'bad',
+            'great',
+            'nice',
+            'fast',
+            'slow',
+            'recommended',
+            'really',
+            'very',
+        ];
 
         $allReviewTexts = SentimenData::pluck('review_text');
         $wordCounts = [];
@@ -297,6 +638,11 @@ class HomeController extends Controller
             'sentimentDonutLabels' => $sentimentDonutLabels,
             'sentimentDonutDataValues' => $sentimentDonutDataValues,
             'totalSentimenComments' => $totalSentimenComments,
+            // Aggregate Sales Chart Data
+            'agregatLabels' => $agregatLabels,
+            'actualAgregatData' => $actualAgregatData,
+            'forecastAgregatData' => $forecastAgregatData,
+            'lastUpdateAgregat' => $lastUpdateAgregat,
         ]);
     }
 
@@ -313,6 +659,7 @@ class HomeController extends Controller
                     return $date->format('Y-m-d');
                 case 'weekly':
                     $dateForKey = $date->copy();
+                    // Set the week to start on Friday as per the original logic context
                     $daysToSubtract = ($dateForKey->dayOfWeekIso - Carbon::FRIDAY + 7) % 7;
                     return $dateForKey->subDays($daysToSubtract)->format('Y-m-d');
                 case 'monthly':
@@ -334,7 +681,7 @@ class HomeController extends Controller
             }
             return Carbon::createFromFormat('Y-m-d', $label)->startOfDay();
         } catch (\Exception $e) {
-            // Log::error("Error parsing label to date: {$label}, Period: {$period}. Error: " . $e->getMessage());
+
             return null;
         }
     }

@@ -5,15 +5,13 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
-use App\Models\SalesData; // Pastikan model SalesData ada dan terkonfigurasi dengan benar
+use App\Models\SalesData;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Schema; // Ditambahkan untuk mengambil informasi skema tabel
+use Illuminate\Support\Facades\Schema;
 
 class ChatbotController extends Controller
 {
-    // Peta bulan dipindahkan menjadi properti kelas agar bisa diakses oleh metode lain
     private $bulanMap = [
         'januari' => '01',
         'februari' => '02',
@@ -31,16 +29,16 @@ class ChatbotController extends Controller
 
     public function index()
     {
-        return view('chatbot'); // Pastikan view 'chatbot' ada
+        return view('chatbot');
     }
 
     public function response(Request $request)
     {
-        $userMessage = $request->input('message', ''); // Simpan pesan asli untuk logging jika perlu
-        $lowerUserMessage = strtolower($userMessage); // Gunakan versi lowercase untuk matching
+        $userMessage = $request->input('message', '');
+        $lowerUserMessage = strtolower($userMessage);
 
         try {
-            // 1. Tangani pertanyaan spesifik: "data [tanggal] dept [x] store [y]"
+
             if (preg_match('/data\s*(\d{4}-\d{2}-\d{2}).*dept\s*(\d+).*store\s*(\d+)/i', $lowerUserMessage, $matches)) {
                 [, $date, $dept, $store] = $matches;
                 $data = SalesData::where('date', $date)
@@ -49,8 +47,8 @@ class ChatbotController extends Controller
                     ->first();
 
                 if ($data) {
-                    // Membuat output dalam format Markdown agar bisa diproses formatGeminiResponse
-                    $summary = "### Data Penjualan Ditemukan\n\n" . // Menggunakan heading Markdown
+
+                    $summary = "### Data Penjualan Ditemukan\n\n" .
                         "- **Tanggal**: " . Carbon::parse($data->date)->format('d M Y') . "\n" .
                         "- **Store**: {$data->store}\n" .
                         "- **Department**: {$data->dept}\n" .
@@ -61,7 +59,7 @@ class ChatbotController extends Controller
                 }
             }
 
-            // 2. Tangani pertanyaan bulanan spesifik + dept + store: "bulan [namaBulan] [tahun] dept [x] store [y]"
+
             if (preg_match('/bulan\s*(\w+)\s*(\d{4}).*dept\s*(\d+).*store\s*(\d+)/i', $lowerUserMessage, $matches)) {
                 [, $bulanNameInput, $tahun, $dept, $store] = $matches;
                 $bulanNameLower = strtolower($bulanNameInput);
@@ -80,7 +78,7 @@ class ChatbotController extends Controller
                 }
             }
 
-            // 3. Tangani pertanyaan bulanan umum (tanpa dept/store): "bulan [namaBulan] [tahun]"
+
             if (preg_match('/bulan\s*(\w+)\s*(\d{4})/i', $lowerUserMessage, $matches)) {
                 if (!str_contains($lowerUserMessage, 'dept') && !str_contains($lowerUserMessage, 'store')) {
                     [, $bulanNameInput, $tahun] = $matches;
@@ -99,7 +97,7 @@ class ChatbotController extends Controller
                 }
             }
 
-            // 4. Tangani pertanyaan tahun + dept + store: "tahun [tahun] dept [x] store [y]"
+
             if (preg_match('/tahun\s*(\d{4}).*dept\s*(\d+).*store\s*(\d+)/i', $lowerUserMessage, $matches)) {
                 [, $tahun, $dept, $store] = $matches;
                 $baseQuery = SalesData::whereYear('date', $tahun)
@@ -123,7 +121,7 @@ class ChatbotController extends Controller
                 if (!$sampleData->isEmpty()) {
                     $responseText .= "Berikut adalah sampel hingga 10 data penjualan terbaru untuk kriteria yang dipilih, ditampilkan dengan data terlama dari sampel ini di bagian atas:\n";
                     $tableMarkdown .= "| Tanggal       | Daily Sales   |\n";
-                    $tableMarkdown .= "|:--------------|:--------------|\n"; // Alignment right for sales
+                    $tableMarkdown .= "|:--------------|:--------------|\n";
                     foreach ($sampleData as $row) {
                         $dateFormatted = Carbon::parse($row->date)->format('d M Y');
                         $salesFormatted = "$" . number_format($row->daily_sales, 2);
@@ -136,7 +134,7 @@ class ChatbotController extends Controller
                 return response()->json(['response' => $this->formatGeminiResponse($responseText)]);
             }
 
-            // 5. Tampilkan sales data terbaru jika diminta: "sales data" atau "data penjualan"
+
             if (str_contains($lowerUserMessage, 'sales data') || str_contains($lowerUserMessage, 'data penjualan')) {
                 $isSimpleDataRequest = true;
                 $specificPatterns = [
@@ -164,7 +162,7 @@ class ChatbotController extends Controller
 
                     $responseText = "Berikut hingga 5 data penjualan terbaru dari sistem, ditampilkan dengan data terlama dari sampel ini di bagian atas:\n";
                     $tableMarkdown = "| Tanggal   | Store | Dept  | Daily Sales   |\n";
-                    $tableMarkdown .= "|:----------|:------|:------|:--------------|\n"; // Alignment right for sales
+                    $tableMarkdown .= "|:----------|:------|:------|:--------------|\n";
                     foreach ($salesData as $row) {
                         $dateFmt = Carbon::parse($row->date)->format('d M Y');
                         $salesFmt = "$" . number_format($row->daily_sales, 2);
@@ -175,27 +173,26 @@ class ChatbotController extends Controller
                 }
             }
 
-            // 6. Respon sapaan
+            // Retrival
             if (str_contains($lowerUserMessage, 'halo') || str_contains($lowerUserMessage, 'hai') || str_contains($lowerUserMessage, 'hi')) {
                 return response()->json(['response' => $this->formatGeminiResponse('Halo! Ada yang bisa saya bantu terkait analisis penjualan?')]);
             }
 
-            // 6.1. Contoh penggunaan extractNumber: "status toko [nomor]"
             if (str_contains($lowerUserMessage, 'status toko')) {
                 $storeNumber = $this->extractNumber($lowerUserMessage, 'toko');
                 if ($storeNumber !== null) {
                     $latestSale = SalesData::where('store', $storeNumber)->orderBy('date', 'desc')->first();
                     if ($latestSale) {
                         $responseText = "Info: Data penjualan terakhir untuk toko **{$storeNumber}** pada tanggal **" .
-                                Carbon::parse($latestSale->date)->format('d M Y') .
-                                "** adalah **$" . number_format($latestSale->daily_sales, 2) . "**";
+                            Carbon::parse($latestSale->date)->format('d M Y') .
+                            "** adalah **$" . number_format($latestSale->daily_sales, 2) . "**";
                         return response()->json(['response' => $this->formatGeminiResponse($responseText)]);
                     } else {
                         return response()->json(['response' => $this->formatGeminiResponse("Info: Tidak ada data penjualan ditemukan untuk toko {$storeNumber}.")]);
                     }
                 }
             }
-            // 6.2. Contoh penggunaan extractPeriodType dan extractPeriodNumber: "cek periode [minggu/bulan/hari] ke [nomor]"
+
             $periodKeywordFound = false;
             if (
                 str_contains($lowerUserMessage, 'cek periode minggu ke') ||
@@ -217,7 +214,7 @@ class ChatbotController extends Controller
                 }
             }
 
-            // MODIFIED BLOCK 6.3: Tangani permintaan "Total Dataset"
+
             if (str_contains($lowerUserMessage, 'total dataset')) {
                 $totalDataCount = SalesData::count();
                 $salesDataInstance = new SalesData();
@@ -238,10 +235,6 @@ class ChatbotController extends Controller
             }
 
 
-            // --- IMPLEMENTASI RAG ---
-
-            // 7. Tangani pertanyaan prediksi / forecast (menggunakan Gemini dengan RAG)
-            // ... (blok ini tetap sama)
             $forecastKeywords = ['prediksi', 'forecast', 'ramalan', 'peramalan', 'proyeksi'];
             $foundForecastKeyword = false;
             foreach ($forecastKeywords as $kw) {
@@ -280,8 +273,9 @@ class ChatbotController extends Controller
                 return response()->json(['response' => $this->formatGeminiResponse($geminiResponse)]);
             }
 
-            // 8. Jika tidak ada pola spesifik di atas, cek kata kunci umum untuk Gemini (dengan RAG jika memungkinkan)
+
             $allowedGeneralKeywords = [
+
                 // Kata Kunci Umum Forecasting
                 'forecasting penjualan',
                 'prediksi penjualan',
@@ -378,7 +372,7 @@ class ChatbotController extends Controller
                 return response()->json(['response' => $this->formatGeminiResponse($geminiResponse)]);
             }
 
-            // 9. Jika tidak ada yang cocok, default response
+
             return response()->json([
                 'response' => $this->formatGeminiResponse('Maaf, saya tidak mengerti pertanyaan Anda. Anda bisa bertanya tentang data penjualan spesifik (berdasarkan tanggal, bulan, tahun, departemen, atau toko), meminta ringkasan data penjualan terbaru, atau menanyakan prediksi penjualan dan analisis umum terkait penjualan.')
             ]);
@@ -513,7 +507,8 @@ class ChatbotController extends Controller
     /**
      * Menerapkan format Markdown inline ke teks yang sudah di-htmlspecialchars.
      */
-    private function applyInlineMarkdown($text) {
+    private function applyInlineMarkdown($text)
+    {
         // Bold: **text** or __text__
         $text = preg_replace('/\*\*(.*?)\*\*/s', '<strong>$1</strong>', $text);
         $text = preg_replace('/__(.*?)__/s', '<strong>$1</strong>', $text);
@@ -543,32 +538,32 @@ class ChatbotController extends Controller
      * @param array $tableLines Baris-baris yang membentuk tabel Markdown.
      * @return string HTML tabel atau string kosong jika parsing gagal.
      */
-    private function parseMarkdownTable(array $tableLines) {
-        if (count($tableLines) < 2) { // Minimal header dan separator
+    private function parseMarkdownTable(array $tableLines)
+    {
+        if (count($tableLines) < 2) {
             return '';
         }
 
         $headerLine = trim(array_shift($tableLines), " \t\n\r\0\x0B|");
         $separatorLine = trim(array_shift($tableLines), " \t\n\r\0\x0B|");
 
-        // Validasi dasar untuk separator
-        if (!preg_match('/^\|?.*(?:---|===|:::).*\|?$/', "|" . $separatorLine . "|")) { // Memastikan ada ---, ===, atau :::
-             // Log::debug("Table parse failed: Separator line invalid: " . $separatorLine);
-            return ''; // Bukan format separator yang valid
+
+        if (!preg_match('/^\|?.*(?:---|===|:::).*\|?$/', "|" . $separatorLine . "|")) {
+
+            return '';
         }
 
         $headers = array_map('trim', explode('|', $headerLine));
         $separators = array_map('trim', explode('|', $separatorLine));
 
-        // Hapus elemen kosong di awal/akhir jika ada karena trim('|')
         if (empty($headers[0])) array_shift($headers);
-        if (empty($headers[count($headers)-1])) array_pop($headers);
+        if (empty($headers[count($headers) - 1])) array_pop($headers);
         if (empty($separators[0])) array_shift($separators);
-        if (empty($separators[count($separators)-1])) array_pop($separators);
+        if (empty($separators[count($separators) - 1])) array_pop($separators);
 
         if (count($headers) === 0 || count($headers) !== count($separators)) {
-            // Log::debug("Table parse failed: Header/Separator count mismatch. Headers: " . count($headers) . ", Separators: " . count($separators));
-            return ''; // Jumlah kolom header dan separator harus sama
+
+            return '';
         }
 
         $alignments = [];
@@ -580,7 +575,7 @@ class ChatbotController extends Controller
             } elseif (preg_match('/:$/', $sep)) {
                 $alignments[] = 'right';
             } else {
-                $alignments[] = ''; // Default alignment
+                $alignments[] = '';
             }
         }
 
@@ -595,20 +590,20 @@ class ChatbotController extends Controller
         $html .= "<tbody>\n";
         foreach ($tableLines as $line) {
             $trimmedDataLine = trim($line, " \t\n\r\0\x0B|");
-            if (empty($trimmedDataLine) && strlen(trim($line)) > 0 && !str_contains(trim($line), '|')) { // Jika baris asli tidak kosong tapi setelah trim jadi kosong, dan tidak ada pipe, mungkin bukan baris tabel
+            if (empty($trimmedDataLine) && strlen(trim($line)) > 0 && !str_contains(trim($line), '|')) {
                 continue;
             }
-            if (!str_contains($line, '|')) continue; // Lewati baris yang bukan bagian dari tabel data
+            if (!str_contains($line, '|')) continue;
 
             $cells = array_map('trim', explode('|', $trimmedDataLine));
-            // Hapus elemen kosong di awal/akhir jika ada karena trim('|')
-             if (empty($cells[0]) && count($cells) > 1) array_shift($cells); // Hati-hati jika hanya ada satu sel kosong
-             if (count($cells) > 0 && empty($cells[count($cells)-1]) && count($cells) > 1) array_pop($cells);
+
+            if (empty($cells[0]) && count($cells) > 1) array_shift($cells);
+            if (count($cells) > 0 && empty($cells[count($cells) - 1]) && count($cells) > 1) array_pop($cells);
 
 
             $html .= "<tr>\n";
-            for ($i = 0; $i < count($headers); $i++) { // Iterasi berdasarkan jumlah header
-                $cellContent = isset($cells[$i]) ? trim($cells[$i]) : ''; // Ambil sel atau string kosong jika tidak ada
+            for ($i = 0; $i < count($headers); $i++) {
+                $cellContent = isset($cells[$i]) ? trim($cells[$i]) : '';
                 $style = !empty($alignments[$i]) ? ' style="text-align: ' . $alignments[$i] . ';"' : '';
                 $html .= "<td{$style}>" . $this->applyInlineMarkdown(htmlspecialchars($cellContent)) . "</td>\n";
             }
@@ -624,12 +619,13 @@ class ChatbotController extends Controller
     /**
      * Memformat teks (termasuk Markdown) ke HTML.
      */
-    private function formatGeminiResponse($text) {
+    private function formatGeminiResponse($text)
+    {
         $text = trim($text);
         $lines = explode("\n", $text);
         $htmlOutput = "";
         $inList = false;
-        $listType = null; // 'ul' atau 'ol'
+        $listType = null;
         $inCodeBlock = false;
         $codeBlockLang = '';
         $codeBlockContent = '';
@@ -639,7 +635,7 @@ class ChatbotController extends Controller
             $trimmedLine = trim($line);
 
             if ($inCodeBlock) {
-                if (preg_match('/^```\s*$/', $trimmedLine)) { // End of code block
+                if (preg_match('/^```\s*$/', $trimmedLine)) {
                     $htmlOutput .= '<pre><code' . (!empty($codeBlockLang) ? ' class="language-' . htmlspecialchars($codeBlockLang) . '"' : '') . '>' . htmlspecialchars(rtrim($codeBlockContent, "\n")) . '</code></pre>' . "\n";
                     $inCodeBlock = false;
                     $codeBlockLang = '';
@@ -661,7 +657,11 @@ class ChatbotController extends Controller
 
             // Code Block (```lang or ```)
             if (preg_match('/^```(\w*)\s*$/', $trimmedLine, $matches)) {
-                if ($inList) { $htmlOutput .= '</' . $listType . '>' . "\n"; $inList = false; $listType = null; }
+                if ($inList) {
+                    $htmlOutput .= '</' . $listType . '>' . "\n";
+                    $inList = false;
+                    $listType = null;
+                }
                 $inCodeBlock = true;
                 $codeBlockLang = isset($matches[1]) ? trim($matches[1]) : '';
                 $codeBlockContent = '';
@@ -670,7 +670,11 @@ class ChatbotController extends Controller
 
             // Headings (# Text, ## Text, etc.)
             if (preg_match('/^(#{1,6})\s+(.*)/', $trimmedLine, $matches)) {
-                if ($inList) { $htmlOutput .= '</' . $listType . '>' . "\n"; $inList = false; $listType = null; }
+                if ($inList) {
+                    $htmlOutput .= '</' . $listType . '>' . "\n";
+                    $inList = false;
+                    $listType = null;
+                }
                 $level = strlen($matches[1]);
                 $content = $this->applyInlineMarkdown(htmlspecialchars(trim($matches[2])));
                 $htmlOutput .= "<h{$level}>{$content}</h{$level}>\n";
@@ -679,22 +683,27 @@ class ChatbotController extends Controller
 
             // Horizontal Rule (---, ***, ___)
             if (preg_match('/^(\*\*\*|---|___)\s*$/', $trimmedLine)) {
-                if ($inList) { $htmlOutput .= '</' . $listType . '>' . "\n"; $inList = false; $listType = null; }
+                if ($inList) {
+                    $htmlOutput .= '</' . $listType . '>' . "\n";
+                    $inList = false;
+                    $listType = null;
+                }
                 $htmlOutput .= "<hr />\n";
                 continue;
             }
 
             // Markdown Table Check
             // A table starts with a line containing '|', followed by a separator line with '|' and '---'
-            if (str_contains($trimmedLine, '|') &&
-                isset($lines[$i+1]) && str_contains($lines[$i+1], '|') && preg_match('/\|.*(?:---|===|:::).*\|/', $lines[$i+1]) &&
-                (!isset($lines[$i-1]) || trim($lines[$i-1]) === '' || !str_contains($lines[$i-1], '|')) // Ensure it's the start of a table block
+            if (
+                str_contains($trimmedLine, '|') &&
+                isset($lines[$i + 1]) && str_contains($lines[$i + 1], '|') && preg_match('/\|.*(?:---|===|:::).*\|/', $lines[$i + 1]) &&
+                (!isset($lines[$i - 1]) || trim($lines[$i - 1]) === '' || !str_contains($lines[$i - 1], '|'))
             ) {
                 $tableBlockLines = [];
                 $currentTableLineIndex = $i;
-                // Consume all consecutive lines that seem to be part of the table
-                while(isset($lines[$currentTableLineIndex]) && str_contains($lines[$currentTableLineIndex], '|')) {
-                    // Stop if an empty line is encountered, unless it's the very first line after separator which could be an empty data row start
+
+                while (isset($lines[$currentTableLineIndex]) && str_contains($lines[$currentTableLineIndex], '|')) {
+
                     if (trim($lines[$currentTableLineIndex]) === '' && $currentTableLineIndex > $i + 1) break;
                     $tableBlockLines[] = $lines[$currentTableLineIndex];
                     $currentTableLineIndex++;
@@ -702,7 +711,11 @@ class ChatbotController extends Controller
 
                 $tableHtml = $this->parseMarkdownTable($tableBlockLines);
                 if (!empty($tableHtml)) {
-                    if ($inList) { $htmlOutput .= '</' . $listType . '>' . "\n"; $inList = false; $listType = null; }
+                    if ($inList) {
+                        $htmlOutput .= '</' . $listType . '>' . "\n";
+                        $inList = false;
+                        $listType = null;
+                    }
                     $htmlOutput .= $tableHtml;
                     $i = $currentTableLineIndex - 1;
                     continue;
@@ -711,16 +724,22 @@ class ChatbotController extends Controller
 
             // Blockquotes (> Text)
             if (preg_match('/^>\s+(.*)/', $trimmedLine, $matches)) {
-                if ($inList) { $htmlOutput .= '</' . $listType . '>' . "\n"; $inList = false; $listType = null; }
+                if ($inList) {
+                    $htmlOutput .= '</' . $listType . '>' . "\n";
+                    $inList = false;
+                    $listType = null;
+                }
                 $content = $this->applyInlineMarkdown(htmlspecialchars(trim($matches[1])));
-                $htmlOutput .= "<blockquote><p>{$content}</p></blockquote>\n"; // Simple one-line blockquote
+                $htmlOutput .= "<blockquote><p>{$content}</p></blockquote>\n";
                 continue;
             }
 
             // Unordered list (* item, - item)
             if (preg_match('/^(\*|-)\s+(.*)/', $trimmedLine, $matches)) {
                 if (!$inList || $listType !== 'ul') {
-                    if ($inList) { $htmlOutput .= '</' . $listType . '>' . "\n"; }
+                    if ($inList) {
+                        $htmlOutput .= '</' . $listType . '>' . "\n";
+                    }
                     $htmlOutput .= "<ul>\n";
                     $inList = true;
                     $listType = 'ul';
@@ -732,7 +751,9 @@ class ChatbotController extends Controller
             // Ordered list (1. item)
             elseif (preg_match('/^(\d+\.)\s+(.*)/', $trimmedLine, $matches)) {
                 if (!$inList || $listType !== 'ol') {
-                    if ($inList) { $htmlOutput .= '</' . $listType . '>' . "\n"; }
+                    if ($inList) {
+                        $htmlOutput .= '</' . $listType . '>' . "\n";
+                    }
                     $htmlOutput .= "<ol>\n";
                     $inList = true;
                     $listType = 'ol';
@@ -746,11 +767,7 @@ class ChatbotController extends Controller
             if (!empty($trimmedLine)) {
                 $content = $this->applyInlineMarkdown(htmlspecialchars($trimmedLine));
                 $htmlOutput .= "<p>" . $content . "</p>\n";
-            } elseif (empty($trimmedLine) && $i > 0 && !empty(trim($lines[$i-1]))) {
-                // If the current line is empty, and the previous was not, it can act as a paragraph break.
-                // HTML typically handles this with CSS margins on <p> tags.
-                // Adding an empty <p></p> or <br> might be an option if more distinct breaks are needed for multiple empty lines.
-                // For now, single empty lines will result in separation due to closing previous <p> and starting new one.
+            } elseif (empty($trimmedLine) && $i > 0 && !empty(trim($lines[$i - 1]))) {
             }
         }
 
@@ -777,14 +794,14 @@ class ChatbotController extends Controller
             $response = Http::withHeaders([
                 'Content-Type' => 'application/json',
             ])->timeout(60)
-              ->post($url, [
-                'contents' => [
-                    [
-                        'role' => 'user',
-                        'parts' => [['text' => $prompt]]
-                    ]
-                ],
-            ]);
+                ->post($url, [
+                    'contents' => [
+                        [
+                            'role' => 'user',
+                            'parts' => [['text' => $prompt]]
+                        ]
+                    ],
+                ]);
             if ($response->successful()) {
                 $data = $response->json();
                 if (isset($data['candidates'][0]['content']['parts'][0]['text'])) {
