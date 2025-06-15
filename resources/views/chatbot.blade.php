@@ -6,7 +6,11 @@
 
     <div class="card shadow-lg mb-4">
         <div class="card-header bg-primary text-white py-3">
-            <h6 class="m-0 font-weight-bold">Sales Forecasting Chatbot</h6>
+            <div class="d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold">Sales Forecasting Chatbot</h6>
+                {{-- Help Icon --}}
+                <i id="helpIcon" class="fa-regular fa-circle-question" style="font-size: 1.2rem; cursor: pointer;" title="Bantuan"></i>
+            </div>
         </div>
         <div class="card-body">
             {{-- Chatbox --}}
@@ -25,6 +29,38 @@
                     <span id="loadingSpinner" class="spinner-border spinner-border-sm d-none" style="position: absolute;"
                         role="status" aria-hidden="true"></span>
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Help Modal -->
+    <div class="modal fade" id="helpModal" tabindex="-1" role="dialog" aria-labelledby="helpModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="helpModalLabel"><i class="fa-regular fa-circle-question mr-2"></i>Panduan Penggunaan Chatbot</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p>Anda dapat menanyakan berbagai hal terkait data penjualan. Berikut adalah beberapa contoh pertanyaan yang bisa Anda ajukan:</p>
+                    <ul>
+                        <li>total dataset</li>
+                        <li>penjualan di bulan juni 2010 berapa?</li>
+                        <li>penjualan toko 1 departemen 1 berapa?</li>
+                        <li>penjualan di tahun 2011 toko 1 departemen 1 berapa?</li>
+                        <li>pada tahun 2010 departemen mana yang penjualannya terbanyak dan di toko mana?</li>
+                        <li>penjualan tanggal 5 februari 2011 dept 1 departemen 1 berapa?</li>
+                        <li>pada toko 1 departemen mana dengan penjualan terbanyak?</li>
+                        <li>pada tahun 2010 toko mana yang penjualannya terbanyak?</li>
+                        <li>berapa penjualan terbanyak pada toko 1, 2, dan 3 di tahun 2010?</li>
+                        <li>di departemen berapa penjualan terbanyak pada toko 1, 2, dan 3 di tahun 2010?</li>
+                    </ul>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Tutup</button>
+                </div>
             </div>
         </div>
     </div>
@@ -77,6 +113,9 @@
 @endsection
 
 @push('scripts')
+    {{-- Font Awesome for Help Icon --}}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" xintegrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             // DOM Elements
@@ -85,6 +124,7 @@
             const sendButton = document.getElementById('sendButton');
             const sendIcon = document.getElementById('sendIcon');
             const loadingSpinner = document.getElementById('loadingSpinner');
+            const helpIcon = document.getElementById('helpIcon'); // Help Icon
 
             // --- Helper Functions ---
 
@@ -244,6 +284,14 @@
             }
 
             // --- Event Listeners ---
+
+            // Show help modal on icon click
+            if (helpIcon) {
+                helpIcon.addEventListener('click', () => {
+                    // Using jQuery for Bootstrap modal, as it's common in AdminLTE
+                    $('#helpModal').modal('show');
+                });
+            }
 
             // Send message on button click
             if (sendButton) {

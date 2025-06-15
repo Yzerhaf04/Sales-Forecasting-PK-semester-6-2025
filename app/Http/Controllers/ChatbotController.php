@@ -84,44 +84,33 @@ class ChatbotController extends Controller
     {
         $schema = $this->getDatabaseSchema(['sales_data']);
         $prompt = <<<PROMPT
-        Anda adalah AI parser yang mengubah pertanyaan menjadi JSON untuk query Eloquent. Fokus hanya pada data penjualan.
+        Anda adalah AI parser yang sangat teliti, bertugas mengubah pertanyaan menjadi format JSON untuk query Eloquent. Anda hanya fokus pada data penjualan.
 
         PERATURAN:
-        1.  HANYA keluarkan JSON valid. Tanpa penjelasan atau markdown.
-        2.  Jika pertanyaan tidak berhubungan dengan data penjualan, toko, atau departemen (misal: tentang hari libur, siapa presiden, dll.), keluarkan objek JSON kosong `{}`.
-        3.  `filters` harus array of object, berisi `column`, `operator` (`=`, `>`, `<`, `<=`, `>=`, `in`), dan `value`.
-        4.  Untuk filter waktu, gunakan operator 'year'/'month'/'date'.
-        5.  `aggregation` berisi `function` (`sum`, `avg`, `count`) dan `column`.
-        6.  Jika ada permintaan untuk membatasi data, tambahkan field `limit` (integer).
-        7.  Jika ada permintaan pengurutan (terbanyak, terendah, teratas), tambahkan `order_by` dengan `column` dan `direction` ('asc' atau 'desc').
+        1.  **HANYA** keluarkan JSON yang valid. Jangan tambahkan penjelasan, komentar, atau markdown.
+        2.  Jika pertanyaan sama sekali tidak relevan dengan data penjualan (misal: tentang cuaca, politik, dll.), keluarkan objek JSON kosong `{}`.
+        3.  `filters` adalah array of object. Setiap object berisi `column`, `operator` (`=`, `>`, `<`, `<=`, `>=`, `in`), dan `value`.
+        4.  Untuk filter waktu, gunakan operator 'year', 'month', atau 'date'.
+        5.  Jika ada kata seperti 'antara', 'dan', atau daftar item (misal: 'toko 1, 2, dan 5'), gunakan operator `in` dengan value berupa array.
+        6.  `aggregation` berisi `function` (`sum`, `avg`, `count`) dan `column`.
+        7.  `order_by` berisi `column` dan `direction` ('asc' atau 'desc'). Untuk sorting berdasarkan agregasi, gunakan aliasnya (misal: 'sum_daily_sales').
+        8.  Jika diminta data teratas atau terbanyak, gunakan `order_by` dengan `direction`: 'desc' dan `limit`.
 
-        CONTOH 1 (Agregasi):
-        Pertanyaan: "Berapa total penjualan departemen 1 store 1 tahun 2010?"
+        CONTOH PENTING (Mencari Pemenang Absolut):
+        Pertanyaan: "Berapa penjualan terbanyak pada toko 1, 2, dan 3 di tahun 2010?" ATAU "di departemen berapa penjualan terbanyak pada toko 1, 2, dan 3 di tahun 2010?"
+        Kedua pertanyaan ini memiliki makna yang sama: mencari satu kombinasi toko-departemen dengan penjualan tertinggi. Keduanya HARUS menghasilkan JSON di bawah ini.
         JSON:
         ```json
         {
-          "aggregation": { "function": "sum", "column": "daily_sales" },
-          "filters": [
-            {"column": "dept", "operator": "=", "value": 1},
-            {"column": "store", "operator": "=", "value": 1},
-            {"column": "date", "operator": "year", "value": "2010"}
-          ]
-        }
-        ```
-
-        CONTOH 2 (Top-N Query):
-        Pertanyaan: "Toko mana dengan penjualan terbanyak di tahun 2011?"
-        JSON:
-        ```json
-        {
-          "select": ["store"],
-          "aggregation": { "function": "sum", "column": "daily_sales" },
-          "filters": [
-            {"column": "date", "operator": "year", "value": "2011"}
-          ],
-          "group_by": ["store"],
-          "order_by": {"column": "sum_daily_sales", "direction": "desc"},
-          "limit": 1
+            "select": ["store", "dept"],
+            "aggregation": {"function": "sum", "column": "daily_sales"},
+            "filters": [
+                {"column": "store", "operator": "in", "value": [1, 2, 3]},
+                {"column": "date", "operator": "year", "value": "2010"}
+            ],
+            "group_by": ["store", "dept"],
+            "order_by": {"column": "sum_daily_sales", "direction": "desc"},
+            "limit": 1
         }
         ```
         ---
@@ -143,6 +132,7 @@ class ChatbotController extends Controller
             return null;
         }
     }
+
 
     /**
      * Membangun dan mengeksekusi query Eloquent secara dinamis berdasarkan parameter.
@@ -204,12 +194,14 @@ class ChatbotController extends Controller
         if (!empty($params['order_by']['column'])) {
             $orderByColumn = $params['order_by']['column'];
             $direction = strtolower($params['order_by']['direction'] ?? 'asc');
+            // Penting: Gunakan orderByRaw untuk sorting pada alias kolom agregasi
             if ($aggregationAlias && $orderByColumn === $aggregationAlias) {
-                $query->orderByRaw("{$aggregationAlias} {$direction}");
+                 $query->orderByRaw("{$aggregationAlias} {$direction}");
             } else {
-                $query->orderBy($orderByColumn, $direction);
+                 $query->orderBy($orderByColumn, $direction);
             }
         }
+
 
         // 5. Terapkan LIMIT
         if (!empty($params['limit']) && is_numeric($params['limit'])) {
@@ -257,36 +249,41 @@ class ChatbotController extends Controller
 
         Log::debug('Generating final answer with result and params.', ['result_count' => count($queryResult), 'params' => $params]);
 
-        $prompt = "Anda adalah asisten analis data yang cerdas dan komunikatif. Tugas Anda adalah menjawab pertanyaan pengguna dengan bahasa yang natural dan mudah dimengerti, berdasarkan data dan konteks filter yang diberikan.\n\n"
-                . "PERATURAN PENTING:\n"
-                . "1. **Jangan sebutkan nama kolom mentah** seperti 'sum_daily_sales'. Ubah menjadi label yang bisa dimengerti manusia (misalnya: 'Total Penjualan').\n"
-                . "2. **Sajikan jawaban dalam kalimat lengkap.**\n"
-                . "3. **Sertakan konteks dari filter** dalam jawaban Anda untuk memastikan jawabannya relevan.\n"
-                . "4. **Jika hasil query berisi beberapa baris data (bukan satu nilai agregat), WAJIB format jawaban sebagai tabel Markdown yang rapi.**\n\n"
-                . "CONTOH JAWABAN IDEAL:\n"
-                . "Jika pertanyaannya 'Total penjualan dept 1 store 1 tahun 2010', jawaban yang baik adalah: \"Tentu, total penjualan untuk departemen 1 di toko 1 selama tahun 2010 adalah sebesar \$7,752,293.87.\"\n\n"
-                . "CONTOH JAWABAN TABEL:\n"
-                . "Jika pertanyaannya 'Tampilkan 10 data penjualan', jawaban yang baik adalah:\n"
-                . "\"Berikut adalah 10 data penjualan teratas yang Anda minta:\n\n"
-                . "| Tanggal      | Dept | Store | Penjualan Harian |\n"
-                . "|--------------|------|-------|------------------|\n"
-                . "| 2010-02-05   | 1    | 1     | 24924.50         |\n"
-                . "| ... (dan seterusnya) ... |\n"
-                . "\"\n\n"
-                . "---\n"
-                . "Konteks Filter yang Digunakan (untuk referensi Anda):\n"
-                . "```json\n"
-                . $jsonParams . "\n"
-                . "```\n\n"
-                . "Data dari Database (Hasil Query):\n"
-                . "```json\n"
-                . $jsonResult . "\n"
-                . "```\n---\n"
-                . "Pertanyaan Pengguna: \"{$userQuestion}\"\n"
-                . "Jawaban Analitis Anda (dalam Bahasa Indonesia):";
+        $prompt = <<<PROMPT
+        Anda adalah asisten analis data yang cerdas dan komunikatif. Tugas Anda adalah menjawab pertanyaan pengguna dengan bahasa yang natural, akurat, dan mudah dimengerti, berdasarkan data dan konteks filter yang diberikan.
+
+        PERATURAN PENTING:
+        1.  **Jangan sebutkan nama kolom mentah** seperti 'sum_daily_sales' atau 'daily_sales'. Ubah menjadi label yang bisa dimengerti manusia (misalnya: 'Total Penjualan', 'Penjualan Harian'). Format angka mata uang dengan simbol dolar ($) dan pemisah ribuan.
+        2.  **Sajikan jawaban dalam kalimat lengkap** dan ringkas.
+        3.  **Sertakan konteks dari filter** dalam jawaban Anda untuk memastikan jawabannya relevan (misal: sebutkan tahun atau toko yang ditanyakan).
+        4.  Jika hasil query berisi **beberapa baris data** (bukan satu nilai agregat), **WAJIB** format jawaban sebagai tabel Markdown yang rapi. Beri judul yang sesuai untuk tabel.
+        5.  Untuk pertanyaan "terbanyak/tertinggi", identifikasi pemenangnya dan sebutkan secara eksplisit dalam kalimat.
+        6.  **ATURAN KRITIS**: Untuk jawaban "terbanyak" atau "tertinggi" yang dikelompokkan oleh lebih dari satu kolom (misal: 'store' dan 'dept'), Anda **WAJIB** menyebutkan nilai dari **SEMUA** kolom tersebut secara spesifik. Jawaban harus dalam format "departemen [nomor] di toko [nomor]".
+
+        CONTOH JAWABAN "TERBANYAK" (Multi-Group - **SANGAT PENTING**):
+        Pertanyaan: 'Berapa penjualan terbanyak pada toko 1, 2, dan 3 di tahun 2010?'
+        Hasil Query: `[{"store": 2, "dept": 92, "sum_daily_sales": 543210.98}]`
+        Jawaban yang Benar: "Pada tahun 2010, di antara toko 1, 2, dan 3, penjualan terbanyak diraih oleh **departemen 92 di toko 2** dengan total penjualan sebesar **$543,211**."
+
+        ---
+        Konteks Filter yang Digunakan (untuk referensi Anda):
+        ```json
+        {$jsonParams}
+        ```
+
+        Data dari Database (Hasil Query):
+        ```json
+        {$jsonResult}
+        ```
+        ---
+        Pertanyaan Pengguna: "{$userQuestion}"
+        Jawaban Analitis Anda (dalam Bahasa Indonesia, format Markdown, pastikan mengikuti ATURAN KRITIS dan contoh yang relevan):
+        PROMPT;
+
 
         return $this->askGemini($prompt);
     }
+
 
     /**
      * Menganalisis pertanyaan yang tidak dapat diproses dan memberikan penolakan atau klarifikasi.
@@ -315,18 +312,18 @@ class ChatbotController extends Controller
             return 'Maaf, konfigurasi API untuk AI sedang bermasalah.';
         }
 
-        $apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
+        $apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={$apiKey}";
 
         try {
             $response = Http::withHeaders(['Content-Type' => 'application/json'])
-                ->withQueryParameters(['key' => $apiKey])
-                ->timeout(60)
+                ->timeout(60) // 60-second timeout
                 ->post($apiUrl, [
                     'contents' => [['role' => 'user', 'parts' => [['text' => $prompt]]]],
                     'generationConfig' => [ 'temperature' => 0.1, 'maxOutputTokens' => 2048 ]
                 ]);
 
             if ($response->successful()) {
+                // Safely access the deeply nested text value
                 return data_get($response->json(), 'candidates.0.content.parts.0.text', 'Maaf, saya tidak dapat memproses respons dari AI.');
             }
 
