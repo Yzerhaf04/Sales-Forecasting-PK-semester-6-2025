@@ -11,7 +11,7 @@
         <div class="card-body">
             {{-- Chatbox --}}
             <div id="chatbox"
-                style="height: 500px; overflow-y: auto; margin-bottom: 20px; padding: 20px; background-color: #f4f6f9; border-radius: 12px; box-shadow: inset 0 0 5px rgba(0,0,0,0.1);">
+                style="height: 450px; overflow-y: auto; margin-bottom: 20px; padding: 20px; background-color: #f4f6f9; border-radius: 12px; box-shadow: inset 0 0 5px rgba(0,0,0,0.1);">
             </div>
 
             {{-- Input Area --}}

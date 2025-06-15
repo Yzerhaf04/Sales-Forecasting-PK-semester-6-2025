@@ -3,823 +3,321 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Str;
+use App\Models\User;
 use App\Models\SalesData;
+use App\Models\SentimenData;
+use App\Models\SalesAgregatData;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 
-class ChatbotController extends Controller
+class HomeController extends Controller
 {
-    private $bulanMap = [
-        'januari' => '01',
-        'februari' => '02',
-        'maret' => '03',
-        'april' => '04',
-        'mei' => '05',
-        'juni' => '06',
-        'juli' => '07',
-        'agustus' => '08',
-        'september' => '09',
-        'oktober' => '10',
-        'november' => '11',
-        'desember' => '12',
-    ];
-
-    public function index()
+    public function __construct()
     {
-        return view('chatbot');
+        $this->middleware('auth');
     }
 
-    public function response(Request $request)
+    public function index(Request $request)
     {
-        $userMessage = $request->input('message', '');
-        $lowerUserMessage = strtolower($userMessage);
+        $selectedDept = $request->input('department', 1);
+        $selectedStore = $request->input('store', 1);
+        $period = $request->input('period', 'monthly');
 
-        try {
+        Carbon::setLocale('id');
+        date_default_timezone_set('Asia/Jakarta');
 
-            if (preg_match('/data\s*(\d{4}-\d{2}-\d{2}).*dept\s*(\d+).*store\s*(\d+)/i', $lowerUserMessage, $matches)) {
-                [, $date, $dept, $store] = $matches;
-                $data = SalesData::where('date', $date)
-                    ->where('dept', $dept)
-                    ->where('store', $store)
-                    ->first();
+        $labelsForView = [];
+        $alignedActualSales = [];
+        $alignedForecastSales = [];
+        $sumOfActualSales = 0;
+        $sumOfPastForecastSales = 0;
+        $lastUpdatedSales = 'T/A';
+        $lastUpdatedDateOnlySales = 'T/A';
+        $totalSentimenComments = SentimenData::count();
 
-                if ($data) {
 
-                    $summary = "### Data Penjualan Ditemukan\n\n" .
-                        "- **Tanggal**: " . Carbon::parse($data->date)->format('d M Y') . "\n" .
-                        "- **Store**: {$data->store}\n" .
-                        "- **Department**: {$data->dept}\n" .
-                        "- **Daily Sales**: $" . number_format($data->daily_sales, 2);
-                    return response()->json(['response' => $this->formatGeminiResponse($summary)]);
-                } else {
-                    return response()->json(['response' => $this->formatGeminiResponse('Data tidak ditemukan untuk tanggal, departemen, dan toko tersebut.')]);
-                }
+        // --- Logic for SalesAgregatData Chart (Separate Card) ---
+        $salesAgregatData = SalesAgregatData::orderBy('date', 'asc')->get();
+
+        $agregatLabels = [];
+        $actualAgregatData = [];
+        $forecastAgregatData = [];
+        $forecastStartDate = Carbon::parse('2012-10-26');
+
+        foreach ($salesAgregatData as $item) {
+            $currentDate = Carbon::parse($item->date);
+            $agregatLabels[] = $currentDate->translatedFormat('d M Y');
+
+            if ($currentDate->gte($forecastStartDate)) {
+                $actualAgregatData[] = null;
+                $forecastAgregatData[] = (float)$item->actual;
+            } else {
+                $actualAgregatData[] = (float)$item->actual;
+                $forecastAgregatData[] = null;
+            }
+        }
+        // --- End of Logic for SalesAgregatData Chart ---
+
+
+        $overallLastDailyDateString = SalesData::where('dept', $selectedDept)
+            ->where('store', $selectedStore)
+            ->max('date');
+
+        if ($overallLastDailyDateString) {
+            $overallLastDailyDate = Carbon::parse($overallLastDailyDateString)->startOfDay();
+            $forecastBoundaryStartDateDefault = $overallLastDailyDate->copy()->subDays(89)->startOfDay();
+
+            if ($period === 'weekly') {
+                $actualHistoricStartWeekly = Carbon::parse('2010-02-05')->startOfDay();
+                $actualHistoricEndWeekly = Carbon::parse('2012-10-25')->startOfDay();
+                $forecastFromPastStartWeekly = Carbon::parse('2012-10-26')->startOfDay();
+
+                $rawDailyActualHistoricalSales = SalesData::where('dept', $selectedDept)
+                    ->where('store', '>=', $selectedStore)
+                    ->where('date', '>=', $actualHistoricStartWeekly->toDateString())
+                    ->where('date', '<=', $actualHistoricEndWeekly->toDateString())
+                    ->orderBy('date', 'asc')
+                    ->get(['date', 'daily_sales'])
+                    ->map(fn($item) => ['date' => Carbon::parse($item->date)->startOfDay(), 'sales' => (float)$item->daily_sales]);
+
+                $rawDailyForecastSalesFromPast = SalesData::where('dept', $selectedDept)
+                    ->where('store', $selectedStore)
+                    ->where('date', '>=', $forecastFromPastStartWeekly->toDateString())
+                    ->where('date', '<=', $overallLastDailyDate->toDateString())
+                    ->orderBy('date', 'asc')
+                    ->get(['date', 'daily_sales'])
+                    ->map(fn($item) => ['date' => Carbon::parse($item->date)->startOfDay(), 'sales' => (float)$item->daily_sales]);
+            } else {
+                $rawDailyActualHistoricalSales = SalesData::where('dept', $selectedDept)
+                    ->where('store', $selectedStore)
+                    ->where('date', '<', $forecastBoundaryStartDateDefault->toDateString())
+                    ->orderBy('date', 'asc')
+                    ->get(['date', 'daily_sales'])
+                    ->map(fn($item) => ['date' => Carbon::parse($item->date)->startOfDay(), 'sales' => (float)$item->daily_sales]);
+
+                $rawDailyForecastSalesFromPast = SalesData::where('dept', $selectedDept)
+                    ->where('store', $selectedStore)
+                    ->whereBetween('date', [$forecastBoundaryStartDateDefault->toDateString(), $overallLastDailyDate->toDateString()])
+                    ->orderBy('date', 'asc')
+                    ->get(['date', 'daily_sales'])
+                    ->map(fn($item) => ['date' => Carbon::parse($item->date)->startOfDay(), 'sales' => (float)$item->daily_sales]);
             }
 
+            $sumOfActualSales = $rawDailyActualHistoricalSales->sum('sales');
+            $sumOfPastForecastSales = $rawDailyForecastSalesFromPast->sum('sales');
 
-            if (preg_match('/bulan\s*(\w+)\s*(\d{4}).*dept\s*(\d+).*store\s*(\d+)/i', $lowerUserMessage, $matches)) {
-                [, $bulanNameInput, $tahun, $dept, $store] = $matches;
-                $bulanNameLower = strtolower($bulanNameInput);
+            $groupedActualHistoricalSales = $this->groupSalesData($rawDailyActualHistoricalSales, $period);
+            $actualLabels = !empty($groupedActualHistoricalSales) ? array_keys($groupedActualHistoricalSales) : [];
 
-                if (isset($this->bulanMap[$bulanNameLower])) {
-                    $bulanAngka = $this->bulanMap[$bulanNameLower];
-                    $totalSales = SalesData::whereYear('date', $tahun)
-                        ->whereMonth('date', $bulanAngka)
-                        ->where('dept', $dept)
-                        ->where('store', $store)
-                        ->sum('daily_sales');
-                    $responseText = "Total penjualan pada bulan " . ucfirst($bulanNameLower) . " $tahun untuk Dept $dept dan Store $store adalah **$" . number_format($totalSales, 2) . "**";
-                    return response()->json(['response' => $this->formatGeminiResponse($responseText)]);
-                } else {
-                    return response()->json(['response' => $this->formatGeminiResponse("Nama bulan tidak dikenali. Silakan gunakan nama bulan lengkap (e.g., Januari, Februari).")]);
-                }
-            }
+            $groupedForecastSalesFromPast = $this->groupSalesData($rawDailyForecastSalesFromPast, $period);
+            $forecastLabelsFromPast = !empty($groupedForecastSalesFromPast) ? array_keys($groupedForecastSalesFromPast) : [];
 
+            $allCombinedLabels = $this->mergeAndSortLabels($actualLabels, $forecastLabelsFromPast, $period);
+            $processedForecastDataForChart = $groupedForecastSalesFromPast;
 
-            if (preg_match('/bulan\s*(\w+)\s*(\d{4})/i', $lowerUserMessage, $matches)) {
-                if (!str_contains($lowerUserMessage, 'dept') && !str_contains($lowerUserMessage, 'store')) {
-                    [, $bulanNameInput, $tahun] = $matches;
-                    $bulanNameLower = strtolower($bulanNameInput);
-
-                    if (isset($this->bulanMap[$bulanNameLower])) {
-                        $bulanAngka = $this->bulanMap[$bulanNameLower];
-                        $totalSales = SalesData::whereYear('date', $tahun)
-                            ->whereMonth('date', $bulanAngka)
-                            ->sum('daily_sales');
-                        $responseText = "Total penjualan pada bulan " . ucfirst($bulanNameLower) . " $tahun (seluruh departemen dan toko) adalah **$" . number_format($totalSales, 2) . "**";
-                        return response()->json(['response' => $this->formatGeminiResponse($responseText)]);
+            if (!empty($actualLabels) && !empty($groupedActualHistoricalSales)) {
+                $lastActualLabelWithValue = end($actualLabels);
+                if (isset($groupedActualHistoricalSales[$lastActualLabelWithValue])) {
+                    $lastActualValue = $groupedActualHistoricalSales[$lastActualLabelWithValue];
+                    if (!isset($processedForecastDataForChart[$lastActualLabelWithValue])) {
+                        $processedForecastDataForChart = [$lastActualLabelWithValue => $lastActualValue] + $processedForecastDataForChart;
                     } else {
-                        return response()->json(['response' => $this->formatGeminiResponse("Nama bulan tidak dikenali. Silakan gunakan nama bulan lengkap.")]);
+                        $processedForecastDataForChart[$lastActualLabelWithValue] = $lastActualValue;
                     }
                 }
             }
 
-
-            if (preg_match('/tahun\s*(\d{4}).*dept\s*(\d+).*store\s*(\d+)/i', $lowerUserMessage, $matches)) {
-                [, $tahun, $dept, $store] = $matches;
-                $baseQuery = SalesData::whereYear('date', $tahun)
-                    ->where('dept', $dept)
-                    ->where('store', $store);
-                $totalCount = (clone $baseQuery)->count();
-                if ($totalCount == 0) {
-                    return response()->json(['response' => $this->formatGeminiResponse("Data tidak ditemukan untuk tahun $tahun, Dept $dept, Store $store.")]);
-                }
-                $totalSumSales = (clone $baseQuery)->sum('daily_sales');
-                $latestSampleData = (clone $baseQuery)
-                    ->orderBy('date', 'desc')
-                    ->limit(10)
-                    ->get(['date', 'daily_sales']);
-                $sampleData = $latestSampleData->sortBy('date');
-
-                $responseText = "Ditemukan total **" . number_format($totalCount) . "** data untuk tahun **$tahun**, Dept **$dept**, Store **$store**.\n";
-                $responseText .= "Total keseluruhan penjualan untuk kriteria tersebut adalah **$" . number_format($totalSumSales, 2) . "**.\n\n";
-
-                $tableMarkdown = "";
-                if (!$sampleData->isEmpty()) {
-                    $responseText .= "Berikut adalah sampel hingga 10 data penjualan terbaru untuk kriteria yang dipilih, ditampilkan dengan data terlama dari sampel ini di bagian atas:\n";
-                    $tableMarkdown .= "| Tanggal       | Daily Sales   |\n";
-                    $tableMarkdown .= "|:--------------|:--------------|\n";
-                    foreach ($sampleData as $row) {
-                        $dateFormatted = Carbon::parse($row->date)->format('d M Y');
-                        $salesFormatted = "$" . number_format($row->daily_sales, 2);
-                        $tableMarkdown .= "| " . $dateFormatted . " | " . $salesFormatted . " |\n";
-                    }
-                    $responseText .= $tableMarkdown;
-                } else if ($totalCount > 0 && $sampleData->isEmpty()) {
-                    $responseText .= "Tidak ada sampel data rinci yang dapat ditampilkan untuk kriteria ini (meskipun $totalCount total data ditemukan).";
-                }
-                return response()->json(['response' => $this->formatGeminiResponse($responseText)]);
-            }
-
-
-            if (str_contains($lowerUserMessage, 'sales data') || str_contains($lowerUserMessage, 'data penjualan')) {
-                $isSimpleDataRequest = true;
-                $specificPatterns = [
-                    '/data\s*(\d{4}-\d{2}-\d{2}).*dept\s*(\d+).*store\s*(\d+)/i',
-                    '/bulan\s*(\w+)\s*(\d{4}).*dept\s*(\d+).*store\s*(\d+)/i',
-                    '/bulan\s*(\w+)\s*(\d{4})(?!\s*dept)(?!\s*store)/i',
-                    '/tahun\s*(\d{4}).*dept\s*(\d+).*store\s*(\d+)/i',
-                ];
-                foreach ($specificPatterns as $pattern) {
-                    if (preg_match($pattern, $lowerUserMessage)) {
-                        $isSimpleDataRequest = false;
-                        break;
-                    }
-                }
-
-                if ($isSimpleDataRequest) {
-                    $latestSalesData = SalesData::select('date', 'store', 'dept', 'daily_sales')
-                        ->orderBy('date', 'desc')
-                        ->limit(5)
-                        ->get();
-                    $salesData = $latestSalesData->sortBy('date');
-                    if ($salesData->isEmpty()) {
-                        return response()->json(['response' => $this->formatGeminiResponse('Tidak ada data penjualan terbaru untuk ditampilkan.')]);
-                    }
-
-                    $responseText = "Berikut hingga 5 data penjualan terbaru dari sistem, ditampilkan dengan data terlama dari sampel ini di bagian atas:\n";
-                    $tableMarkdown = "| Tanggal   | Store | Dept  | Daily Sales   |\n";
-                    $tableMarkdown .= "|:----------|:------|:------|:--------------|\n";
-                    foreach ($salesData as $row) {
-                        $dateFmt = Carbon::parse($row->date)->format('d M Y');
-                        $salesFmt = "$" . number_format($row->daily_sales, 2);
-                        $tableMarkdown .= "| {$dateFmt} | {$row->store} | {$row->dept} | {$salesFmt} |\n";
-                    }
-                    $responseText .= $tableMarkdown;
-                    return response()->json(['response' => $this->formatGeminiResponse($responseText)]);
-                }
-            }
-
-            // Retrival
-            if (str_contains($lowerUserMessage, 'halo') || str_contains($lowerUserMessage, 'hai') || str_contains($lowerUserMessage, 'hi')) {
-                return response()->json(['response' => $this->formatGeminiResponse('Halo! Ada yang bisa saya bantu terkait analisis penjualan?')]);
-            }
-
-            if (str_contains($lowerUserMessage, 'status toko')) {
-                $storeNumber = $this->extractNumber($lowerUserMessage, 'toko');
-                if ($storeNumber !== null) {
-                    $latestSale = SalesData::where('store', $storeNumber)->orderBy('date', 'desc')->first();
-                    if ($latestSale) {
-                        $responseText = "Info: Data penjualan terakhir untuk toko **{$storeNumber}** pada tanggal **" .
-                            Carbon::parse($latestSale->date)->format('d M Y') .
-                            "** adalah **$" . number_format($latestSale->daily_sales, 2) . "**";
-                        return response()->json(['response' => $this->formatGeminiResponse($responseText)]);
-                    } else {
-                        return response()->json(['response' => $this->formatGeminiResponse("Info: Tidak ada data penjualan ditemukan untuk toko {$storeNumber}.")]);
-                    }
-                }
-            }
-
-            $periodKeywordFound = false;
-            if (
-                str_contains($lowerUserMessage, 'cek periode minggu ke') ||
-                str_contains($lowerUserMessage, 'cek periode bulan ke') ||
-                str_contains($lowerUserMessage, 'cek periode hari ke')
-            ) {
-                $periodKeywordFound = true;
-            }
-            if ($periodKeywordFound) {
-                $periodType = $this->extractPeriodType($lowerUserMessage);
-                $periodNumber = $this->extractPeriodNumber($lowerUserMessage);
-                if ($periodType && $periodNumber) {
-                    $responseText = "Info: Pengecekan diminta untuk periode Tipe='{$periodType}', Nomor='{$periodNumber}'. ";
-                    if ($periodType === 'monthly') {
-                        $responseText .= "Ini bisa merujuk pada bulan ke-{$periodNumber} dalam suatu tahun. ";
-                    }
-                    $responseText .= "Fitur detail untuk ini sedang dalam pengembangan.";
-                    return response()->json(['response' => $this->formatGeminiResponse($responseText)]);
-                }
-            }
-
-
-            if (str_contains($lowerUserMessage, 'total dataset')) {
-                $totalDataCount = SalesData::count();
-                $salesDataInstance = new SalesData();
-                $attributes = Schema::getColumnListing($salesDataInstance->getTable());
-                $attributesCount = count($attributes);
-                $attributesList = "";
-                foreach ($attributes as $index => $attribute) {
-                    $attributesList .= "- `" . htmlspecialchars($attribute) . "`\n";
-                }
-
-                $datasetInfo = "## Informasi Dataset Proyek (dari database `sales_data`)\n\n" .
-                    "- **Sumber Dataset**: Proyek menggunakan dataset dari Kaggle Perusahaan Walmart namun data aktual diambil dari database `sales_data` lokal.\n" .
-                    "- **Total Jumlah Data di Database**: " . number_format($totalDataCount) . " baris data.\n" .
-                    "- **Atribut/Kolom dalam Tabel `sales_data`** (Jumlah: " . $attributesCount . "):\n" . $attributesList .
-                    "- **Prediksi Penjualan**: Prediksi penjualan harian kami lakukan untuk periode 90 hari kedepan.\n";
-
-                return response()->json(['response' => $this->formatGeminiResponse($datasetInfo)]);
-            }
-
-
-            $forecastKeywords = ['prediksi', 'forecast', 'ramalan', 'peramalan', 'proyeksi'];
-            $foundForecastKeyword = false;
-            foreach ($forecastKeywords as $kw) {
-                if (str_contains($lowerUserMessage, $kw)) {
-                    $foundForecastKeyword = true;
-                    break;
-                }
-            }
-            if ($foundForecastKeyword) {
-                $retrievedDataContext = $this->getSalesDataContextForRAG($lowerUserMessage);
-                $promptForLLM = "Anda adalah AI asisten analisis penjualan yang canggih.\n\n";
-                if (!empty(trim($retrievedDataContext))) {
-                    $promptForLLM .= "Berikut adalah data penjualan historis yang mungkin relevan dari sistem kami untuk membantu analisis Anda:\n";
-                    $promptForLLM .= $retrievedDataContext . "\n";
+            foreach ($allCombinedLabels as $label) {
+                $alignedActualSales[] = $groupedActualHistoricalSales[$label] ?? null;
+                if (count($actualLabels) > 0 && $label === $actualLabels[count($actualLabels) - 1] && isset($groupedActualHistoricalSales[$label])) {
+                    $alignedForecastSales[] = $groupedActualHistoricalSales[$label];
                 } else {
-                    $generalRecentData = SalesData::orderBy('date', 'desc')
-                        ->limit(3)
-                        ->get(['date', 'store', 'dept', 'daily_sales']);
-                    if (!$generalRecentData->isEmpty()) {
-                        $promptForLLM .= "Tidak ada data spesifik yang terdeteksi dari permintaan Anda. Namun, sebagai informasi umum, berikut adalah beberapa data penjualan terkini dari sistem:\n";
-                        foreach ($generalRecentData as $data) {
-                            $promptForLLM .= "- Tgl: " . Carbon::parse($data->date)->format('d M Y') .
-                                ", Toko: {$data->store}, Dept: {$data->dept}" .
-                                ", Penjualan: $" . number_format($data->daily_sales, 2) . "\n";
-                        }
-                        $promptForLLM .= "\n";
-                    } else {
-                        $promptForLLM .= "Catatan: Tidak ada data penjualan spesifik yang terdeteksi dari permintaan Anda, dan tidak ada data penjualan umum terbaru yang bisa diambil dari sistem kami untuk dijadikan konteks.\n\n";
-                    }
-                }
-                $promptForLLM .= "Dengan mempertimbangkan data di atas (jika ada dan relevan) serta pengetahuan umum Anda, jawablah pertanyaan pengguna berikut:\n";
-                $promptForLLM .= "Pertanyaan Pengguna: " . htmlspecialchars($userMessage) . "\n\n";
-                $promptForLLM .= "Jawaban Analitis Anda:";
-                Log::info("RAG Prompt for Forecast: " . $promptForLLM);
-                $geminiResponse = $this->askGemini($promptForLLM);
-                return response()->json(['response' => $this->formatGeminiResponse($geminiResponse)]);
-            }
-
-
-            $allowedGeneralKeywords = [
-
-                // Kata Kunci Umum Forecasting
-                'forecasting penjualan',
-                'prediksi penjualan',
-                'proyeksi penjualan',
-                'ramalan penjualan',
-                'sales projection',
-                'sales prediction',
-                'demand forecasting',
-                'estimasi penjualan',
-
-                // Tujuan dan Konsep
-                'kenapa perlu forecasting',
-                'kegunaan forecasting',
-                'fungsi forecasting',
-                'tujuan sales forecasting',
-                'strategi bisnis',
-                'pengambilan keputusan',
-
-                // Model/Metode
-                'model peramalan',
-                'model statistik',
-                'algoritma prediksi penjualan',
-                'time series forecasting',
-                'exponential smoothing',
-                'moving average',
-
-                // Evaluasi dan Analisis
-                'akurasi prediksi',
-                'error forecasting',
-                'metrik evaluasi',
-                'MAPE',
-                'RMSE',
-                'evaluasi model',
-
-                // Data Umum & Eksternal
-                'pengaruh musim',
-                'tren pasar',
-                'kondisi pasar',
-                'faktor eksternal',
-                'faktor musiman',
-                'libur nasional',
-                'event khusus',
-
-                // Studi Kasus / Industri Umum
-                'studi kasus forecasting',
-                'penerapan forecasting',
-                'contoh forecasting',
-                'industri retail',
-                'industri makanan',
-                'e-commerce forecasting',
-
-                // Konteks Walmart (Umum)
-                'data penjualan walmart',
-                'analisis walmart',
-                'walmart forecasting',
-                'strategi walmart',
-                'tren walmart',
-
-                // Pertanyaan Definisi
-                'apa itu sales forecasting',
-                'definisi forecasting',
-                'arti forecasting',
-                'penjelasan forecasting',
-                'manfaat sales forecasting',
-
-                // Tambahan
-                'peforma',
-            ];
-
-            $isGeneralSalesQuery = false;
-            foreach ($allowedGeneralKeywords as $keyword) {
-                if (str_contains($lowerUserMessage, $keyword)) {
-                    $isGeneralSalesQuery = true;
-                    break;
+                    $alignedForecastSales[] = $processedForecastDataForChart[$label] ?? null;
                 }
             }
 
-            if ($isGeneralSalesQuery) {
-                $retrievedDataContext = $this->getSalesDataContextForRAG($lowerUserMessage);
-                $promptForLLM = "Anda adalah AI asisten analisis penjualan yang sangat membantu dan informatif.\n\n";
-                if (!empty(trim($retrievedDataContext))) {
-                    $promptForLLM .= "Berikut adalah data penjualan historis yang mungkin relevan dari sistem kami untuk membantu analisis Anda:\n";
-                    $promptForLLM .= $retrievedDataContext . "\n";
-                } else {
-                    if (str_contains($lowerUserMessage, 'analisis') || str_contains($lowerUserMessage, 'tren') || str_contains($lowerUserMessage, 'pertumbuhan') || str_contains($lowerUserMessage, 'penurunan')) {
-                        $promptForLLM .= "Catatan: Tidak ada data penjualan spesifik yang terdeteksi dari permintaan Anda untuk dijadikan konteks dari sistem kami.\n\n";
-                    }
-                }
-                $promptForLLM .= "Dengan mempertimbangkan data di atas (jika ada dan relevan) serta pengetahuan umum Anda, jawablah pertanyaan pengguna berikut:\n";
-                $promptForLLM .= "Pertanyaan Pengguna: " . htmlspecialchars($userMessage) . "\n\n";
-                $promptForLLM .= "Jawaban Informatif Anda:";
-                Log::info("RAG Prompt for General Query: " . $promptForLLM);
-                $geminiResponse = $this->askGemini($promptForLLM);
-                return response()->json(['response' => $this->formatGeminiResponse($geminiResponse)]);
+            $labelsForView = array_map(fn($label) => $this->formatLabelForView($label, $period), $allCombinedLabels);
+            $lastUpdateForFilterSales = SalesData::where('dept', $selectedDept)->where('store', $selectedStore)->max('updated_at');
+
+            // --- PERBAIKAN ZONA WAKTU ---
+            if ($lastUpdateForFilterSales) {
+                // Gunakan parse() yang lebih fleksibel, dengan tetap menyatakan 'UTC' sebagai sumber timezone.
+                $lastUpdatedDateTimeSales = Carbon::parse($lastUpdateForFilterSales, 'UTC')->timezone('Asia/Jakarta');
+                $lastUpdatedSales = $lastUpdatedDateTimeSales->translatedFormat('d F Y H:i');
+                $lastUpdatedDateOnlySales = $lastUpdatedDateTimeSales->translatedFormat('d F Y');
             }
-
-
-            return response()->json([
-                'response' => $this->formatGeminiResponse('Maaf, saya tidak mengerti pertanyaan Anda. Anda bisa bertanya tentang data penjualan spesifik (berdasarkan tanggal, bulan, tahun, departemen, atau toko), meminta ringkasan data penjualan terbaru, atau menanyakan prediksi penjualan dan analisis umum terkait penjualan.')
-            ]);
-        } catch (\Exception $e) {
-            Log::error('ChatbotController Error: ' . $e->getMessage() . ' StackTrace: ' . $e->getTraceAsString());
-            return response()->json([
-                'response' => $this->formatGeminiResponse('Maaf, terjadi kesalahan internal di server saat memproses permintaan Anda. Tim kami telah diberitahu.')
-            ], 500);
-        }
-    }
-
-    private function getSalesDataContextForRAG($lowerUserMessage)
-    {
-        $contextParts = [];
-        $queryParams = ['store' => null, 'dept' => null, 'year' => null, 'month' => null, 'date' => null];
-        $limit = 3;
-
-        if (preg_match('/(\d{4}-\d{2}-\d{2})/', $lowerUserMessage, $matches)) {
-            $queryParams['date'] = $matches[1];
-            $limit = 1;
-        }
-        if (preg_match('/toko\s*(\d+)/i', $lowerUserMessage, $matches) || preg_match('/store\s*(\d+)/i', $lowerUserMessage, $matches)) {
-            $queryParams['store'] = $matches[1];
-        }
-        if (preg_match('/dept\s*(\d+)/i', $lowerUserMessage, $matches) || preg_match('/departemen\s*(\d+)/i', $lowerUserMessage, $matches)) {
-            $queryParams['dept'] = $matches[1];
-        }
-        foreach ($this->bulanMap as $namaBulan => $angkaBulan) {
-            if (preg_match('/' . preg_quote($namaBulan, '/') . '\s*(\d{4})/i', $lowerUserMessage, $matchesMonthYear)) {
-                $queryParams['month'] = $angkaBulan;
-                $queryParams['year'] = $matchesMonthYear[1];
-                break;
-            }
-        }
-        if (!$queryParams['year'] && preg_match('/tahun\s*(\d{4})/i', $lowerUserMessage, $matchesYear)) {
-            $queryParams['year'] = $matchesYear[1];
-        }
-
-        $query = SalesData::query();
-        $hasSpecificFilters = false;
-
-        if ($queryParams['date']) {
-            $query->where('date', $queryParams['date']);
-            $hasSpecificFilters = true;
         } else {
-            if ($queryParams['year']) {
-                $query->whereYear('date', $queryParams['year']);
-                $hasSpecificFilters = true;
-            }
-            if ($queryParams['month']) {
-                $query->whereMonth('date', $queryParams['month']);
-                $hasSpecificFilters = true;
-            }
-        }
-        if ($queryParams['store']) {
-            $query->where('store', $queryParams['store']);
-            $hasSpecificFilters = true;
-        }
-        if ($queryParams['dept']) {
-            $query->where('dept', $queryParams['dept']);
-            $hasSpecificFilters = true;
-        }
+            $lastUpdateOverallSales = SalesData::max('updated_at');
 
-        $dataToPresent = collect();
-
-        if ($hasSpecificFilters) {
-            $dataToPresent = $query->orderBy('date', 'desc')->limit($limit)->get(['date', 'store', 'dept', 'daily_sales']);
-        }
-
-        if (!$dataToPresent->isEmpty()) {
-            $filterDescriptions = [];
-            if ($queryParams['store']) $filterDescriptions[] = "Toko {$queryParams['store']}";
-            if ($queryParams['dept']) $filterDescriptions[] = "Dept {$queryParams['dept']}";
-            if ($queryParams['date']) {
-                $filterDescriptions[] = "tanggal " . Carbon::parse($queryParams['date'])->format('d M Y');
-            } else {
-                if ($queryParams['month'] && $queryParams['year']) {
-                    $monthName = array_search($queryParams['month'], $this->bulanMap);
-                    $monthNameDisplay = $monthName ? ucfirst(strtolower($monthName)) : "Bulan-{$queryParams['month']}";
-                    $filterDescriptions[] = "bulan " . $monthNameDisplay . " {$queryParams['year']}";
-                } elseif ($queryParams['year']) {
-                    $filterDescriptions[] = "tahun {$queryParams['year']}";
-                }
-            }
-            $contextParts[] = "Konteks data" . (!empty($filterDescriptions) ? " untuk " . implode(", ", $filterDescriptions) : "") . ":";
-            foreach ($dataToPresent as $data) {
-                $part = "- Tgl: " . Carbon::parse($data->date)->format('d M Y');
-                if (!$queryParams['store'] && isset($data->store)) $part .= ", Toko: {$data->store}";
-                if (!$queryParams['dept'] && isset($data->dept)) $part .= ", Dept: {$data->dept}";
-                $part .= ", Penjualan: $" . number_format($data->daily_sales, 2);
-                $contextParts[] = $part;
-            }
-        } else if ($hasSpecificFilters) {
-            $contextParts[] = "Catatan: Tidak ditemukan data penjualan spesifik di sistem kami untuk filter yang terdeteksi dalam permintaan Anda.";
-        }
-
-        if (!empty($contextParts)) {
-            return implode("\n", $contextParts) . "\n";
-        }
-        return "";
-    }
-
-    private function extractNumber($text, $keyword)
-    {
-        if (preg_match("/" . preg_quote($keyword, '/') . "\s*(\d+)/i", $text, $matches)) {
-            return intval($matches[1]);
-        }
-        return null;
-    }
-
-    private function extractPeriodType($text)
-    {
-        $textLower = Str::lower($text);
-        if (Str::contains($textLower, ['minggu', 'mingguan'])) {
-            return 'weekly';
-        } elseif (Str::contains($textLower, ['bulan', 'bulanan'])) {
-            return 'monthly';
-        } elseif (Str::contains($textLower, ['hari', 'harian'])) {
-            return 'daily';
-        }
-        return null;
-    }
-
-    private function extractPeriodNumber($text)
-    {
-        if (preg_match('/(?:minggu|bulan|hari)(?:\s+ke)?\s*(\d+)/i', $text, $matches)) {
-            return intval($matches[1]);
-        }
-        return null;
-    }
-
-    /**
-     * Menerapkan format Markdown inline ke teks yang sudah di-htmlspecialchars.
-     */
-    private function applyInlineMarkdown($text)
-    {
-        // Bold: **text** or __text__
-        $text = preg_replace('/\*\*(.*?)\*\*/s', '<strong>$1</strong>', $text);
-        $text = preg_replace('/__(.*?)__/s', '<strong>$1</strong>', $text);
-
-        // Italic: *text* or _text_
-        $text = preg_replace('/(?<!\*)\*(?!\s|\*)([^*]+?)(?<!\s|\*)\*(?!\*)/s', '<em>$1</em>', $text);
-        $text = preg_replace('/(?<![a-zA-Z0-9_])_([^_]+?)_(?![a-zA-Z0-9_])/s', '<em>$1</em>', $text);
-
-        // Inline Code: `code`
-        $text = preg_replace('/`([^`]+?)`/s', '<code>$1</code>', $text);
-
-        // Links: [text](url)
-        $text = preg_replace_callback(
-            '/\[(.*?)\]\((.*?)\)/s',
-            function ($matches) {
-                $linkText = $matches[1];
-                $url = htmlspecialchars($matches[2], ENT_QUOTES, 'UTF-8');
-                return '<a href="' . $url . '" target="_blank">' . $linkText . '</a>';
-            },
-            $text
-        );
-        return $text;
-    }
-
-    /**
-     * Mem-parsing array baris teks Markdown tabel menjadi HTML.
-     * @param array $tableLines Baris-baris yang membentuk tabel Markdown.
-     * @return string HTML tabel atau string kosong jika parsing gagal.
-     */
-    private function parseMarkdownTable(array $tableLines)
-    {
-        if (count($tableLines) < 2) {
-            return '';
-        }
-
-        $headerLine = trim(array_shift($tableLines), " \t\n\r\0\x0B|");
-        $separatorLine = trim(array_shift($tableLines), " \t\n\r\0\x0B|");
-
-
-        if (!preg_match('/^\|?.*(?:---|===|:::).*\|?$/', "|" . $separatorLine . "|")) {
-
-            return '';
-        }
-
-        $headers = array_map('trim', explode('|', $headerLine));
-        $separators = array_map('trim', explode('|', $separatorLine));
-
-        if (empty($headers[0])) array_shift($headers);
-        if (empty($headers[count($headers) - 1])) array_pop($headers);
-        if (empty($separators[0])) array_shift($separators);
-        if (empty($separators[count($separators) - 1])) array_pop($separators);
-
-        if (count($headers) === 0 || count($headers) !== count($separators)) {
-
-            return '';
-        }
-
-        $alignments = [];
-        foreach ($separators as $sep) {
-            if (preg_match('/^:.*:$/', $sep)) {
-                $alignments[] = 'center';
-            } elseif (preg_match('/^:/', $sep)) {
-                $alignments[] = 'left';
-            } elseif (preg_match('/:$/', $sep)) {
-                $alignments[] = 'right';
-            } else {
-                $alignments[] = '';
+            // --- PERBAIKAN ZONA WAKTU ---
+            if ($lastUpdateOverallSales) {
+                // Gunakan parse() yang lebih fleksibel, dengan tetap menyatakan 'UTC' sebagai sumber timezone.
+                $lastUpdatedDateTimeSales = Carbon::parse($lastUpdateOverallSales, 'UTC')->timezone('Asia/Jakarta');
+                $lastUpdatedSales = $lastUpdatedDateTimeSales->translatedFormat('d F Y H:i');
+                $lastUpdatedDateOnlySales = $lastUpdatedDateTimeSales->translatedFormat('d F Y');
             }
         }
 
-        $html = "<table border=\"1\" style=\"border-collapse: collapse; width: auto; margin-top: 10px; margin-bottom: 10px;\">\n";
-        $html .= "<thead>\n<tr>\n";
-        foreach ($headers as $index => $header) {
-            $style = !empty($alignments[$index]) ? ' style="text-align: ' . $alignments[$index] . ';"' : '';
-            $html .= "<th{$style}>" . $this->applyInlineMarkdown(htmlspecialchars(trim($header))) . "</th>\n";
+        $jumlahPositif = SentimenData::where('label_sentimen', 'positif')->count();
+        $jumlahNegatif = SentimenData::where('label_sentimen', 'negatif')->count();
+        $jumlahNetral  = SentimenData::where('label_sentimen', 'netral')->count();
+        $lastSentimenUpdateTimestamp = SentimenData::max('updated_at');
+        $lastUpdatedSentimenDisplay = 'T/A';
+
+        // --- PERBAIKAN ZONA WAKTU ---
+        if ($lastSentimenUpdateTimestamp) {
+            // Gunakan parse() yang lebih fleksibel, dengan tetap menyatakan 'UTC' sebagai sumber timezone.
+            $lastUpdatedSentimenDisplay = Carbon::parse($lastSentimenUpdateTimestamp, 'UTC')
+                                                    ->timezone('Asia/Jakarta')
+                                                    ->translatedFormat('d F Y H:i');
         }
-        $html .= "</tr>\n</thead>\n";
 
-        $html .= "<tbody>\n";
-        foreach ($tableLines as $line) {
-            $trimmedDataLine = trim($line, " \t\n\r\0\x0B|");
-            if (empty($trimmedDataLine) && strlen(trim($line)) > 0 && !str_contains(trim($line), '|')) {
-                continue;
-            }
-            if (!str_contains($line, '|')) continue;
+        $lastUpdateAgregat = 'T/A';
+        $lastAgregatUpdateTimestamp = SalesAgregatData::max('updated_at');
 
-            $cells = array_map('trim', explode('|', $trimmedDataLine));
-
-            if (empty($cells[0]) && count($cells) > 1) array_shift($cells);
-            if (count($cells) > 0 && empty($cells[count($cells) - 1]) && count($cells) > 1) array_pop($cells);
-
-
-            $html .= "<tr>\n";
-            for ($i = 0; $i < count($headers); $i++) {
-                $cellContent = isset($cells[$i]) ? trim($cells[$i]) : '';
-                $style = !empty($alignments[$i]) ? ' style="text-align: ' . $alignments[$i] . ';"' : '';
-                $html .= "<td{$style}>" . $this->applyInlineMarkdown(htmlspecialchars($cellContent)) . "</td>\n";
-            }
-            $html .= "</tr>\n";
+        // --- PERBAIKAN ZONA WAKTU ---
+        if ($lastAgregatUpdateTimestamp) {
+             // Gunakan parse() yang lebih fleksibel, dengan tetap menyatakan 'UTC' sebagai sumber timezone.
+            $lastUpdateAgregat = Carbon::parse($lastAgregatUpdateTimestamp, 'UTC')
+                                           ->timezone('Asia/Jakarta')
+                                           ->translatedFormat('d F Y H:i');
         }
-        $html .= "</tbody>\n";
-        $html .= "</table>\n";
 
-        return $html;
-    }
+        // --- Logika untuk Donut Chart Kata Populer Sentimen ---
+        $sentimentDonutLabels = [];
+        $sentimentDonutDataValues = [];
+        $minWordLength = 3;
+        $topNWords = 5;
 
+        // Daftar stop words gabungan Bahasa Indonesia dan Bahasa Inggris
+        $stopWords = [ 'yang', 'untuk', 'pada', 'ke', 'para', 'namun', 'menurut', 'antara', 'dia', 'dua', 'ia', 'seperti', 'jika', 'maka', 'dan', 'atau', 'tetapi', 'dengan', 'dari', 'oleh', 'lagi', 'juga', 'saat', 'hal', 'akan', 'adalah', 'ialah', 'saya', 'kamu', 'kami', 'anda', 'mereka', 'ini', 'itu', 'tersebut', 'sangat', 'sekali', 'tidak', 'sudah', 'belum', 'bisa', 'harus', 'agar', 'supaya', 'karena', 'sebab', 'mungkin', 'hanya', 'saja', 'pula', 'pun', 'agak', 'ada', 'adanya', 'adapun', 'agaknya', 'bagaimana', 'bagaimanapun', 'bagi', 'bahkan', 'bahwa', 'bahwasanya', 'beberapa', 'begitu', 'begitupun', 'demi', 'demikian', 'demikianlah', 'di', 'dong', 'enggak', 'enggaknya', 'entah', 'entahlah', 'gak', 'guna', 'hai', 'halo', 'hingga', 'iya', 'jadi', 'jangan', 'jangankan', 'justru', 'kalau', 'kok', 'kecuali', 'kemudian', 'kenapa', 'kepada', 'kepadanya', 'kita', 'lah', 'lain', 'lainnya', 'lalu', 'lebih', 'macam', 'mana', 'manalagi', 'masih', 'melainkan', 'memang', 'meski', 'meskipun', 'nah', 'nanti', 'oh', 'ok', 'pasti', 'per', 'pernah', 'rupa', 'rupanya', 'sebagaimana', 'sebelum', 'sebelumnya', 'sebenarnya', 'sedang', 'sedangkan', 'segala', 'sehingga', 'sejak', 'sekitar', 'selain', 'selalu', 'selama', 'seluruh', 'seluruhnya', 'sementara', 'semua', 'sendiri', 'sering', 'serta', 'siapa', 'sini', 'situ', 'suatu', 'tanpa', 'tapi', 'telah', 'tentang', 'tentu', 'terhadap', 'toh', 'turut', 'untukmu', 'wah', 'wahai', 'walau', 'walaupun', 'ya', 'yaitu', 'yakni', 'nya', 'shopee', 'yg', 'ga', 'gaada', 'gada', 'gk', 'gakada', 'gitu', 'aja', 'sih', 'kak', 'ka', 'min', 'admin', 'seller', 'kurir', 'produk', 'barang', 'toko', 'pengiriman', 'pengemasan', 'harga', 'kualitas', 'respon', 'pelayanan', 'cepat', 'lambat', 'bagus', 'jelek', 'baik', 'buruk', 'sesuai', 'pesanan', 'gambar', 'deskripsi', 'banget', 'bgt', 'mantap', 'oke', 'okey', 'thanks', 'thank', 'you', 'terima', 'kasih', 'recommended', 'rekomended', 'pokoknya', 'deh', 'mantul', 'jos', 'gandos', 'membantu', 'aplikasi', 'banyak', 'a', 'an', 'the', 'is', 'are', 'was', 'were', 'be', 'being', 'been', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'should', 'can', 'could', 'may', 'might', 'must', 'and', 'but', 'or', 'nor', 'for', 'so', 'yet', 'if', 'then', 'else', 'when', 'where', 'why', 'how', 'what', 'which', 'who', 'whom', 'whose', 'this', 'that', 'these', 'those', 'am', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them', 'my', 'your', 'his', 'its', 'our', 'their', 'mine', 'yours', 'hers', 'ours', 'theirs', 'myself', 'yourself', 'himself', 'herself', 'itself', 'ourselves', 'yourselves', 'themselves', 'in', 'on', 'at', 'by', 'from', 'to', 'up', 'down', 'out', 'over', 'under', 'again', 'further', 'once', 'here', 'there', 'all', 'any', 'both', 'each', 'few', 'more', 'then', 'most', 'other', 'some', 'such', 'no', 'not', 'only', 'own', 'same', 'so', 'than', 'too', 'very', 's', 't', 'just', 'don', 'shouldv', 'now', 'd', 'll', 'm', 'o', 're', 've', 'y', 'ain', 'aren', 'couldn', 'didn', 'doesn', 'hadn', 'hasn', 'haven', 'isn', 'ma', 'mightn', 'mustn', 'needn', 'shan', 'shouldn', 'wasn', 'weren', 'won', 'wouldn', 'about', 'above', 'after', 'against', 'because', 'before', 'below', 'between', 'into', 'through', 'during', 'of', 'off', 'throughout', 'until', 'while', 'with', 'product', 'item', 'seller', 'shop', 'store', 'price', 'quality', 'shipping', 'delivery', 'response', 'service', 'good', 'bad', 'great', 'nice', 'fast', 'slow', 'recommended', 'really', 'very'];
 
-    /**
-     * Memformat teks (termasuk Markdown) ke HTML.
-     */
-    private function formatGeminiResponse($text)
-    {
-        $text = trim($text);
-        $lines = explode("\n", $text);
-        $htmlOutput = "";
-        $inList = false;
-        $listType = null;
-        $inCodeBlock = false;
-        $codeBlockLang = '';
-        $codeBlockContent = '';
+        $allReviewTexts = SentimenData::pluck('review_text');
+        $wordCounts = [];
 
-        for ($i = 0; $i < count($lines); $i++) {
-            $line = $lines[$i];
-            $trimmedLine = trim($line);
-
-            if ($inCodeBlock) {
-                if (preg_match('/^```\s*$/', $trimmedLine)) {
-                    $htmlOutput .= '<pre><code' . (!empty($codeBlockLang) ? ' class="language-' . htmlspecialchars($codeBlockLang) . '"' : '') . '>' . htmlspecialchars(rtrim($codeBlockContent, "\n")) . '</code></pre>' . "\n";
-                    $inCodeBlock = false;
-                    $codeBlockLang = '';
-                    $codeBlockContent = '';
-                } else {
-                    $codeBlockContent .= $line . "\n";
-                }
-                continue;
-            }
-
-            // Close list if current line is not a list item or is empty
-            if ($inList) {
-                if (empty($trimmedLine) || !preg_match('/^(\*|-|\d+\.)\s+/', $trimmedLine)) {
-                    $htmlOutput .= '</' . $listType . '>' . "\n";
-                    $inList = false;
-                    $listType = null;
-                }
-            }
-
-            // Code Block (```lang or ```)
-            if (preg_match('/^```(\w*)\s*$/', $trimmedLine, $matches)) {
-                if ($inList) {
-                    $htmlOutput .= '</' . $listType . '>' . "\n";
-                    $inList = false;
-                    $listType = null;
-                }
-                $inCodeBlock = true;
-                $codeBlockLang = isset($matches[1]) ? trim($matches[1]) : '';
-                $codeBlockContent = '';
-                continue;
-            }
-
-            // Headings (# Text, ## Text, etc.)
-            if (preg_match('/^(#{1,6})\s+(.*)/', $trimmedLine, $matches)) {
-                if ($inList) {
-                    $htmlOutput .= '</' . $listType . '>' . "\n";
-                    $inList = false;
-                    $listType = null;
-                }
-                $level = strlen($matches[1]);
-                $content = $this->applyInlineMarkdown(htmlspecialchars(trim($matches[2])));
-                $htmlOutput .= "<h{$level}>{$content}</h{$level}>\n";
-                continue;
-            }
-
-            // Horizontal Rule (---, ***, ___)
-            if (preg_match('/^(\*\*\*|---|___)\s*$/', $trimmedLine)) {
-                if ($inList) {
-                    $htmlOutput .= '</' . $listType . '>' . "\n";
-                    $inList = false;
-                    $listType = null;
-                }
-                $htmlOutput .= "<hr />\n";
-                continue;
-            }
-
-            // Markdown Table Check
-            // A table starts with a line containing '|', followed by a separator line with '|' and '---'
-            if (
-                str_contains($trimmedLine, '|') &&
-                isset($lines[$i + 1]) && str_contains($lines[$i + 1], '|') && preg_match('/\|.*(?:---|===|:::).*\|/', $lines[$i + 1]) &&
-                (!isset($lines[$i - 1]) || trim($lines[$i - 1]) === '' || !str_contains($lines[$i - 1], '|'))
-            ) {
-                $tableBlockLines = [];
-                $currentTableLineIndex = $i;
-
-                while (isset($lines[$currentTableLineIndex]) && str_contains($lines[$currentTableLineIndex], '|')) {
-
-                    if (trim($lines[$currentTableLineIndex]) === '' && $currentTableLineIndex > $i + 1) break;
-                    $tableBlockLines[] = $lines[$currentTableLineIndex];
-                    $currentTableLineIndex++;
-                }
-
-                $tableHtml = $this->parseMarkdownTable($tableBlockLines);
-                if (!empty($tableHtml)) {
-                    if ($inList) {
-                        $htmlOutput .= '</' . $listType . '>' . "\n";
-                        $inList = false;
-                        $listType = null;
+        if ($allReviewTexts->isNotEmpty()) {
+            foreach ($allReviewTexts as $text) {
+                if (empty(trim($text ?? ''))) continue;
+                $cleanedText = Str::lower(preg_replace('/[^\p{L}\p{N}\s]/u', '', $text ?? ''));
+                $words = preg_split('/\s+/', $cleanedText, -1, PREG_SPLIT_NO_EMPTY);
+                foreach ($words as $word) {
+                    if (!in_array($word, $stopWords) && Str::length($word) >= $minWordLength) {
+                        if (!isset($wordCounts[$word])) {
+                            $wordCounts[$word] = 0;
+                        }
+                        $wordCounts[$word]++;
                     }
-                    $htmlOutput .= $tableHtml;
-                    $i = $currentTableLineIndex - 1;
-                    continue;
                 }
             }
-
-            // Blockquotes (> Text)
-            if (preg_match('/^>\s+(.*)/', $trimmedLine, $matches)) {
-                if ($inList) {
-                    $htmlOutput .= '</' . $listType . '>' . "\n";
-                    $inList = false;
-                    $listType = null;
-                }
-                $content = $this->applyInlineMarkdown(htmlspecialchars(trim($matches[1])));
-                $htmlOutput .= "<blockquote><p>{$content}</p></blockquote>\n";
-                continue;
-            }
-
-            // Unordered list (* item, - item)
-            if (preg_match('/^(\*|-)\s+(.*)/', $trimmedLine, $matches)) {
-                if (!$inList || $listType !== 'ul') {
-                    if ($inList) {
-                        $htmlOutput .= '</' . $listType . '>' . "\n";
-                    }
-                    $htmlOutput .= "<ul>\n";
-                    $inList = true;
-                    $listType = 'ul';
-                }
-                $content = $this->applyInlineMarkdown(htmlspecialchars(trim($matches[2])));
-                $htmlOutput .= '<li>' . $content . "</li>\n";
-                continue;
-            }
-            // Ordered list (1. item)
-            elseif (preg_match('/^(\d+\.)\s+(.*)/', $trimmedLine, $matches)) {
-                if (!$inList || $listType !== 'ol') {
-                    if ($inList) {
-                        $htmlOutput .= '</' . $listType . '>' . "\n";
-                    }
-                    $htmlOutput .= "<ol>\n";
-                    $inList = true;
-                    $listType = 'ol';
-                }
-                $content = $this->applyInlineMarkdown(htmlspecialchars(trim($matches[2])));
-                $htmlOutput .= '<li>' . $content . "</li>\n";
-                continue;
-            }
-
-            // Paragraph (normal text)
-            if (!empty($trimmedLine)) {
-                $content = $this->applyInlineMarkdown(htmlspecialchars($trimmedLine));
-                $htmlOutput .= "<p>" . $content . "</p>\n";
-            } elseif (empty($trimmedLine) && $i > 0 && !empty(trim($lines[$i - 1]))) {
+            arsort($wordCounts);
+            $topWords = array_slice($wordCounts, 0, $topNWords, true);
+            foreach ($topWords as $word => $count) {
+                $sentimentDonutLabels[] = $word;
+                $sentimentDonutDataValues[] = $count;
             }
         }
 
-        if ($inList) {
-            $htmlOutput .= '</' . $listType . '>' . "\n";
-        }
-        if ($inCodeBlock) {
-            $htmlOutput .= '<pre><code' . (!empty($codeBlockLang) ? ' class="language-' . htmlspecialchars($codeBlockLang) . '"' : '') . '>' . htmlspecialchars(rtrim($codeBlockContent, "\n")) . '</code></pre>' . "\n";
-        }
+        $distinctStores = SalesData::select('store')->distinct()->orderBy('store', 'asc')->pluck('store');
+        $distinctDepartments = SalesData::select('dept')->distinct()->orderBy('dept', 'asc')->pluck('dept');
+        $totalStores = $distinctStores->count();
+        $totalDepartments = $distinctDepartments->count();
+        $sentimenTerbaru = SentimenData::latest('updated_at')->first();
 
-        return rtrim($htmlOutput, "\n");
+        return view('home', [
+            'widget' => [
+                'users' => User::count(),
+                'total_sales' => $sumOfActualSales + $sumOfPastForecastSales,
+            ],
+            'months' => $labelsForView,
+            'actualSales' => $alignedActualSales,
+            'forecastSales' => $alignedForecastSales,
+            'selectedDept' => $selectedDept,
+            'selectedStore' => $selectedStore,
+            'distinctStores' => $distinctStores,
+            'distinctDepartments' => $distinctDepartments,
+            'totalStores' => $totalStores,
+            'totalDepartments' => $totalDepartments,
+            'lastUpdatedDateOnly' => $lastUpdatedDateOnlySales,
+            'lastUpdated' => $lastUpdatedSales,
+            'period' => $period,
+            'jumlahPositif' => $jumlahPositif,
+            'jumlahNegatif' => $jumlahNegatif,
+            'jumlahNetral' => $jumlahNetral,
+            'sentimenTerbaru' => $sentimenTerbaru,
+            'sentimentLastUpdateDisplay' => $lastUpdatedSentimenDisplay,
+            'sentimentDonutLabels' => $sentimentDonutLabels,
+            'sentimentDonutDataValues' => $sentimentDonutDataValues,
+            'totalSentimenComments' => $totalSentimenComments,
+            // Aggregate Sales Chart Data
+            'agregatLabels' => $agregatLabels,
+            'actualAgregatData' => $actualAgregatData,
+            'forecastAgregatData' => $forecastAgregatData,
+            'lastUpdateAgregat' => $lastUpdateAgregat,
+        ]);
     }
 
-
-    private function askGemini($prompt)
+    private function groupSalesData(Collection $salesData, string $period): array
     {
-        $apiKey = env('GEMINI_API_KEY');
-        if (!$apiKey) {
-            Log::error('GEMINI_API_KEY tidak ditemukan di .env');
-            return 'Maaf, konfigurasi API untuk AI sedang bermasalah.';
+        if ($salesData->isEmpty()) {
+            return [];
         }
-        $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={$apiKey}";
+        $grouped = $salesData->groupBy(function ($item) use ($period) {
+            /** @var Carbon $date */
+            $date = $item['date'];
+            switch ($period) {
+                case 'daily':
+                    return $date->format('Y-m-d');
+                case 'weekly':
+                    $dateForKey = $date->copy();
+                    $daysToSubtract = ($dateForKey->dayOfWeekIso - Carbon::FRIDAY + 7) % 7;
+                    return $dateForKey->subDays($daysToSubtract)->format('Y-m-d');
+                case 'monthly':
+                    return $date->format('Y-m');
+                default:
+                    return $date->format('Y-m-d');
+            }
+        });
+        return $grouped->map(function ($group) {
+            return $group->sum('sales');
+        })->sortKeys()->toArray();
+    }
+
+    private function parseLabelToDate(string $label, string $period): ?Carbon
+    {
         try {
-            $response = Http::withHeaders([
-                'Content-Type' => 'application/json',
-            ])->timeout(60)
-                ->post($url, [
-                    'contents' => [
-                        [
-                            'role' => 'user',
-                            'parts' => [['text' => $prompt]]
-                        ]
-                    ],
-                ]);
-            if ($response->successful()) {
-                $data = $response->json();
-                if (isset($data['candidates'][0]['content']['parts'][0]['text'])) {
-                    return $data['candidates'][0]['content']['parts'][0]['text'];
-                } else {
-                    Log::warning('Struktur respons Gemini tidak sesuai harapan: ' . $response->body());
-                    return 'Maaf, saya mendapat respons yang tidak terduga dari AI.';
-                }
-            } else {
-                Log::error('Error saat menghubungi Gemini: ' . $response->status() . ' - ' . $response->body());
-                return 'Maaf, terjadi kesalahan saat menghubungi layanan AI. Status: ' . $response->status() . ". Detail: " . $response->body();
+            if ($period === 'monthly') {
+                return Carbon::createFromFormat('Y-m', $label)->startOfMonth();
             }
-        } catch (\Illuminate\Http\Client\ConnectionException $e) {
-            Log::error('Koneksi ke Gemini gagal: ' . $e->getMessage());
-            return 'Maaf, saya tidak dapat terhubung ke layanan AI saat ini. Periksa koneksi internet Anda atau coba lagi nanti.';
+            return Carbon::createFromFormat('Y-m-d', $label)->startOfDay();
         } catch (\Exception $e) {
-            Log::error('Exception umum saat memproses permintaan Gemini: ' . $e->getMessage() . ' StackTrace: ' . $e->getTraceAsString());
-            return 'Maaf, terjadi kesalahan umum saat memproses permintaan Anda ke AI.';
+
+            return null;
         }
+    }
+
+    private function mergeAndSortLabels(array $actualLabels, array $forecastLabels, string $period): array
+    {
+        $mergedLabels = array_unique(array_merge($actualLabels, $forecastLabels));
+        usort($mergedLabels, function ($a, $b) use ($period) {
+            $dateA = $this->parseLabelToDate($a, $period);
+            $dateB = $this->parseLabelToDate($b, $period);
+            if (!$dateA || !$dateB) return 0;
+            return $dateA->timestamp <=> $dateB->timestamp;
+        });
+        return $mergedLabels;
+    }
+
+    private function formatLabelForView(string $label, string $period): string
+    {
+        $date = $this->parseLabelToDate($label, $period);
+        if (!$date) return $label;
+
+        if ($period === 'monthly') {
+            return $date->translatedFormat('F Y');
+        } elseif ($period === 'weekly') {
+            return "W" . $date->isoFormat('WW') . " (" . $date->translatedFormat('d M') . ")";
+        }
+        return $date->translatedFormat('d M Y');
     }
 }

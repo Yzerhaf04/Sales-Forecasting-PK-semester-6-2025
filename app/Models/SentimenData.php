@@ -13,5 +13,6 @@ class SentimenData extends Model
     protected $fillable = [
         'review_text',
         'label_sentimen',
+        'updated_at'
     ];
 }

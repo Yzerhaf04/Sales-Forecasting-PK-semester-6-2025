@@ -256,7 +256,7 @@
                 <div class="card-header py-3">
                     <div class="d-flex flex-column flex-md-row justify-content-md-between align-items-md-center">
                         <h6 class="m-0 font-weight-bold text-primary mb-3 mb-md-0">
-                            Sales Agregat Store
+                            Overall Performance
                         </h6>
                         <div class="d-flex flex-wrap justify-content-start justify-content-md-end align-items-center">
                             <div class="btn-group" role="group" aria-label="Zoom controls for Agregat Chart">

@@ -393,8 +393,9 @@ class HomeController extends Controller
             'gandos',
             'membantu',
             'aplikasi',
+            'banyak',
 
-            // Bahasa Inggris (daftar bisa diperpanjang)
+            // Bahasa Inggris
             'a',
             'an',
             'the',
