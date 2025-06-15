@@ -1,10 +1,10 @@
 <?php
 
+use App\Http\Controllers\ChatbotController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\ChatbotController;
 use App\Http\Controllers\NewsController;
 use App\Http\Controllers\SentimenController;
 use App\Http\Controllers\WelcomeController;

@@ -11,7 +11,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
-class HomeController extends Controller
+class ChatbotController extends Controller
 {
     public function __construct()
     {
