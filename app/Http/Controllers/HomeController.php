@@ -87,7 +87,7 @@ class HomeController extends Controller
                     ->map(fn($item) => ['date' => Carbon::parse($item->date)->startOfDay(), 'sales' => (float)$item->daily_sales]);
 
                 $rawDailyForecastSalesFromPast = SalesData::where('dept', $selectedDept)
-                    ->where('store', $selectedStore)
+                    ->where('store', '>=', $selectedStore)
                     ->where('date', '>=', $forecastFromPastStartWeekly->toDateString())
                     ->where('date', '<=', $overallLastDailyDate->toDateString())
                     ->orderBy('date', 'asc')
@@ -158,9 +158,17 @@ class HomeController extends Controller
             }
         }
 
-        $jumlahPositif = SentimenData::where('label_sentimen', 'positif')->count();
-        $jumlahNegatif = SentimenData::where('label_sentimen', 'negatif')->count();
-        $jumlahNetral  = SentimenData::where('label_sentimen', 'netral')->count();
+        // --- Sentiment Percentage Calculation ---
+        $jumlahPositifCount = SentimenData::where('label_sentimen', 'positif')->count();
+        $jumlahNegatifCount = SentimenData::where('label_sentimen', 'negatif')->count();
+        $jumlahNetralCount  = SentimenData::where('label_sentimen', 'netral')->count();
+
+        // Mengubah angka menjadi format persentase dengan membagi 100
+        $jumlahPositif = floor($jumlahPositifCount / 100) . '%';
+        $jumlahNegatif = floor($jumlahNegatifCount / 100) . '%';
+        $jumlahNetral  = floor($jumlahNetralCount / 100) . '%';
+        // --- End of Sentiment Percentage Calculation ---
+
         $lastSentimenUpdateTimestamp = SentimenData::max('updated_at');
         $lastUpdatedSentimenDisplay = 'T/A';
         if ($lastSentimenUpdateTimestamp) {
@@ -181,7 +189,6 @@ class HomeController extends Controller
         $topNWords = 5;
 
         // Daftar stop words gabungan Bahasa Indonesia dan Bahasa Inggris
-
         $stopWords = [
             // Bahasa Indonesia
             'yang',
@@ -682,7 +689,7 @@ class HomeController extends Controller
             }
             return Carbon::createFromFormat('Y-m-d', $label)->startOfDay();
         } catch (\Exception $e) {
-
+            // Log error or handle it as needed
             return null;
         }
     }

@@ -306,7 +306,7 @@
                                     <div class="text-uppercase text-muted mb-1" style="font-size: 1.0rem;">Sentimen
                                         Positif</div>
                                     <div class="h4 font-weight-bold text-success mb-0">
-                                        {{ number_format($jumlahPositif ?? 0, 0, ',', '.') }}
+                                        {{$jumlahPositif}}
                                     </div>
                                 </div>
                             </div>
@@ -316,7 +316,7 @@
                                     <div class="text-uppercase text-muted mb-1" style="font-size: 1.0rem;">Sentimen
                                         Negatif</div>
                                     <div class="h4 font-weight-bold text-danger mb-0">
-                                        {{ number_format($jumlahNegatif ?? 0, 0, ',', '.') }}
+                                        {{$jumlahNegatif }}
                                     </div>
                                 </div>
                             </div>
@@ -326,7 +326,7 @@
                                     <div class="text-uppercase text-muted mb-1" style="font-size: 1.0rem;">Sentimen Netral
                                     </div>
                                     <div class="h4 font-weight-bold text-warning mb-0">
-                                        {{ number_format($jumlahNetral ?? 0, 0, ',', '.') }}
+                                        {{$jumlahNetral }}
                                     </div>
                                 </div>
                             </div>

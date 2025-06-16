@@ -1,6 +1,61 @@
 @extends('layouts.admin')
 
 @section('main-content')
+    {{-- Analisis Sentimen --}}
+    <div class="col-lg-12 mb-2">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Analisis Sentimen</h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {{-- Card Sentimen Positif --}}
+                    <div class="col-lg-4 col-md-6 mb-1">
+                        <div class="card sentiment-card positive-card shadow-sm h-100">
+                            <div class="card-body text-center d-flex flex-column justify-content-center py-4">
+                                <div class="text-uppercase text-muted mb-1" style="font-size: 1.0rem;">Sentimen Positif</div>
+                                <div class="h4 font-weight-bold text-success mb-0">
+                                    {{ number_format($jumlahPositif ?? 0, 0, ',', '.') }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Card Sentimen Negatif --}}
+                    <div class="col-lg-4 col-md-6 mb-1">
+                        <div class="card sentiment-card negative-card shadow-sm h-100">
+                            <div class="card-body text-center d-flex flex-column justify-content-center py-4">
+                                <div class="text-uppercase text-muted mb-1" style="font-size: 1.0rem;">Sentimen Negatif
+                                </div>
+                                <div class="h4 font-weight-bold text-danger mb-0">
+                                    {{ number_format($jumlahNegatif ?? 0, 0, ',', '.') }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Card Sentimen Netral --}}
+                    <div class="col-lg-4 col-md-12 mb-1">
+                        <div class="card sentiment-card neutral-card shadow-sm h-100">
+                            <div class="card-body text-center d-flex flex-column justify-content-center py-4">
+                                <div class="text-uppercase text-muted mb-1" style="font-size: 1.0rem;">Sentimen Netral</div>
+                                <div class="h4 font-weight-bold text-warning mb-0">
+                                    {{ number_format($jumlahNetral ?? 0, 0, ',', '.') }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer">
+                <small class="text-muted">
+                    Showing data for Sentiment Analysis │ Last updated:
+                    {{ $sentimentLastUpdateDisplay ?? 'N/A' }}
+                </small>
+            </div>
+        </div>
+
+    {{-- Input Komentar --}}
     <div class="row">
         <div class="col-lg-12 mb-2">
             <div class="card shadow mb-4">
