@@ -46,7 +46,6 @@
                 <div class="modal-body">
                     <p>Anda dapat menanyakan berbagai hal terkait data penjualan. Berikut adalah beberapa contoh pertanyaan yang bisa Anda ajukan:</p>
                     <ul>
-                        <li>total dataset</li>
                         <li>penjualan di bulan juni 2010 berapa?</li>
                         <li>penjualan toko 1 departemen 1 berapa?</li>
                         <li>penjualan di tahun 2011 toko 1 departemen 1 berapa?</li>
