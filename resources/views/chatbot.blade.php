@@ -47,7 +47,6 @@
                     <p>Anda dapat menanyakan berbagai hal terkait data penjualan. Berikut adalah beberapa contoh pertanyaan yang bisa Anda ajukan:</p>
                     <ul>
                         <li>penjualan di bulan juni 2010 berapa?</li>
-                        <li>penjualan toko 1 departemen 1 berapa?</li>
                         <li>penjualan di tahun 2011 toko 1 departemen 1 berapa?</li>
                         <li>pada tahun 2010 departemen mana yang penjualannya terbanyak dan di toko mana?</li>
                         <li>penjualan tanggal 5 februari 2011 dept 1 departemen 1 berapa?</li>

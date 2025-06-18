@@ -302,31 +302,49 @@
                         <div class="col-lg-5 col-md-12 mb-4 mb-lg-0">
                             {{-- Card Sentimen Positif --}}
                             <div class="card sentiment-card positive-card shadow-sm mb-3">
-                                <div class="card-body text-center d-flex flex-column justify-content-center py-5">
-                                    <div class="text-uppercase text-muted mb-1" style="font-size: 1.0rem;">Sentimen
-                                        Positif</div>
-                                    <div class="h4 font-weight-bold text-success mb-0">
-                                        {{$jumlahPositif}}
+                                <div class="card-body d-flex flex-row align-items-center p-4">
+                                    <div class="ml-5">
+                                        <i class="{{ $sentimentIcons['positif'] }} fa-4x text-success"></i>
+                                    </div>
+                                    <div class="flex-grow-1 text-center">
+                                        <div class="text-uppercase text-muted mb-1" style="font-size: 0.9rem;">Sentimen
+                                            Positif</div>
+                                        <div class="h3 font-weight-bold text-success mb-0">
+                                            {{ $persentasePositif }}%
+                                        </div>
+                                        <small class="text-muted">({{ number_format($jumlahPositif) }} ulasan)</small>
                                     </div>
                                 </div>
                             </div>
                             {{-- Card Sentimen Negatif --}}
                             <div class="card sentiment-card negative-card shadow-sm mb-3">
-                                <div class="card-body text-center d-flex flex-column justify-content-center py-5">
-                                    <div class="text-uppercase text-muted mb-1" style="font-size: 1.0rem;">Sentimen
-                                        Negatif</div>
-                                    <div class="h4 font-weight-bold text-danger mb-0">
-                                        {{$jumlahNegatif }}
+                                <div class="card-body d-flex flex-row align-items-center p-4">
+                                    <div class="ml-5">
+                                        <i class="{{ $sentimentIcons['negatif'] }} fa-4x text-danger"></i>
+                                    </div>
+                                    <div class="flex-grow-1 text-center">
+                                        <div class="text-uppercase text-muted mb-1" style="font-size: 0.9rem;">Sentimen
+                                            Negatif</div>
+                                        <div class="h3 font-weight-bold text-danger mb-0">
+                                            {{ $persentaseNegatif }}%
+                                        </div>
+                                        <small class="text-muted">({{ number_format($jumlahNegatif) }} ulasan)</small>
                                     </div>
                                 </div>
                             </div>
                             {{-- Card Sentimen Netral --}}
                             <div class="card sentiment-card neutral-card shadow-sm">
-                                <div class="card-body text-center d-flex flex-column justify-content-center py-5">
-                                    <div class="text-uppercase text-muted mb-1" style="font-size: 1.0rem;">Sentimen Netral
+                                <div class="card-body d-flex flex-row align-items-center p-4">
+                                    <div class="ml-5">
+                                        <i class="{{ $sentimentIcons['netral'] }} fa-4x text-warning"></i>
                                     </div>
-                                    <div class="h4 font-weight-bold text-warning mb-0">
-                                        {{$jumlahNetral }}
+                                    <div class="flex-grow-1 text-center">
+                                        <div class="text-uppercase text-muted mb-1" style="font-size: 0.9rem;">Sentimen
+                                            Netral</div>
+                                        <div class="h3 font-weight-bold text-warning mb-0">
+                                            {{ $persentaseNetral }}%
+                                        </div>
+                                        <small class="text-muted">({{ number_format($jumlahNetral) }} ulasan)</small>
                                     </div>
                                 </div>
                             </div>
@@ -391,8 +409,12 @@
                             mode: 'xy'
                         },
                         zoom: {
-                            wheel: { enabled: false },
-                            pinch: { enabled: true },
+                            wheel: {
+                                enabled: false
+                            },
+                            pinch: {
+                                enabled: true
+                            },
                             mode: 'xy'
                         }
                     };
@@ -414,14 +436,16 @@
                                     label: 'Actual Sales',
                                     data: @json($actualSales ?? []),
                                     borderColor: 'rgba(78, 115, 223, 1)',
-                                    backgroundColor: chartType === 'bar' ? 'rgba(78, 115, 223, 0.8)' : 'rgba(78, 115, 223, 0.1)',
+                                    backgroundColor: chartType === 'bar' ? 'rgba(78, 115, 223, 0.8)' :
+                                        'rgba(78, 115, 223, 0.1)',
                                     fill: chartType !== 'bar',
                                     tension: 0.3
                                 }, {
                                     label: 'Forecast Sales',
                                     data: @json($forecastSales ?? []),
                                     borderColor: 'rgba(231, 74, 59, 1)',
-                                    backgroundColor: chartType === 'bar' ? 'rgba(231, 74, 59, 0.8)' : 'rgba(231, 74, 59, 0.1)',
+                                    backgroundColor: chartType === 'bar' ? 'rgba(231, 74, 59, 0.8)' :
+                                        'rgba(231, 74, 59, 0.1)',
                                     borderDash: [5, 5],
                                     fill: false,
                                     tension: 0.3
@@ -452,7 +476,7 @@
                     function createAgregatChart() {
                         destroyChart(agregatChartInstance);
                         const ctx = document.getElementById('agregatChart');
-                        if(!ctx) return;
+                        if (!ctx) return;
 
                         agregatChartInstance = new Chart(ctx, {
                             type: 'line',
@@ -524,7 +548,8 @@
                             ctx.textBaseline = 'middle';
                             ctx.font = '14px "Inter", sans-serif';
                             ctx.fillStyle = '#888';
-                            ctx.fillText('Tidak ada data kata populer untuk ditampilkan.', canvasElement.width / 2, canvasElement.height / 2);
+                            ctx.fillText('Tidak ada data kata populer untuk ditampilkan.', canvasElement.width / 2,
+                                canvasElement.height / 2);
                             console.warn("No data for sentiment donut chart.");
                             return;
                         }
@@ -533,7 +558,9 @@
                         const centerTextPlugin = {
                             id: 'centerText',
                             afterDraw: (chart) => {
-                                const { ctx } = chart;
+                                const {
+                                    ctx
+                                } = chart;
                                 const chartArea = chart.chartArea;
                                 if (!chartArea) return;
 
@@ -542,14 +569,14 @@
 
                                 // Total Comments (Formatted)
                                 ctx.save();
-                                ctx.font = "bold 20px 'Inter', sans-serif";
+                                ctx.font = "bold 25px 'Inter', sans-serif";
                                 ctx.fillStyle = '#333';
                                 ctx.textAlign = 'center';
                                 ctx.textBaseline = 'middle';
                                 ctx.fillText(formatNumberKMB(totalCommentsRaw), centerX, centerY - 7);
 
                                 // "Komentar" label
-                                ctx.font = "11px 'Inter', sans-serif";
+                                ctx.font = "12px 'Inter', sans-serif";
                                 ctx.fillStyle = "#6c757d";
                                 ctx.fillText("Komentar", centerX, centerY + 10);
                                 ctx.restore();
@@ -579,20 +606,34 @@
                                 responsive: true,
                                 maintainAspectRatio: false,
                                 cutout: '65%',
-                                layout: { padding: { top: 5, bottom: 20, left: 5, right: 5 } },
+                                layout: {
+                                    padding: {
+                                        top: 5,
+                                        bottom: 20,
+                                        left: 5,
+                                        right: 5
+                                    }
+                                },
                                 plugins: {
                                     legend: {
                                         position: 'bottom',
                                         labels: {
-                                            font: { size: 11, family: "'Inter', sans-serif" },
-                                            boxWidth: 15, padding: 20, color: '#333'
+                                            font: {
+                                                size: 11,
+                                                family: "'Inter', sans-serif"
+                                            },
+                                            boxWidth: 15,
+                                            padding: 20,
+                                            color: '#333'
                                         }
                                     },
                                     tooltip: {
                                         callbacks: {
                                             label: function(context) {
                                                 let label = context.label || '';
-                                                if (label) { label += ': '; }
+                                                if (label) {
+                                                    label += ': ';
+                                                }
                                                 if (context.parsed !== null) {
                                                     label += context.parsed.toLocaleString('id-ID');
                                                 }
@@ -617,9 +658,9 @@
                         const zoomOutBtn = document.getElementById(zoomOutId);
                         const resetZoomBtn = document.getElementById(resetZoomId);
 
-                        if(zoomInBtn) zoomInBtn.addEventListener('click', () => chartInstance?.zoom(1.1));
-                        if(zoomOutBtn) zoomOutBtn.addEventListener('click', () => chartInstance?.zoom(0.9));
-                        if(resetZoomBtn) resetZoomBtn.addEventListener('click', () => chartInstance?.resetZoom());
+                        if (zoomInBtn) zoomInBtn.addEventListener('click', () => chartInstance?.zoom(1.1));
+                        if (zoomOutBtn) zoomOutBtn.addEventListener('click', () => chartInstance?.zoom(0.9));
+                        if (resetZoomBtn) resetZoomBtn.addEventListener('click', () => chartInstance?.resetZoom());
                     };
 
                     setupZoomControls(forecastChartInstance, 'zoomInBtn', 'zoomOutBtn', 'resetZoomBtn');
@@ -662,4 +703,4 @@
                 }
             </style>
         @endpush
-@endsection
+    @endsection
